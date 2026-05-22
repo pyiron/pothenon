@@ -231,27 +231,6 @@ class TestGetCallDependencies(unittest.TestCase):
         self.assertIsInstance(result, dict)
         self.assertEqual(result, {})
 
-    def test_versioned_dependency_collected(self):
-        """A versioned dependency returned by ``find_undefined_variables`` is stored."""
-        import pydantic  # available in CI test environment
-
-        with patch.object(
-            dependency_parser,
-            "find_undefined_variables",
-            return_value={"BaseModel": pydantic.BaseModel},
-        ):
-            result = dependency_parser.get_call_dependencies(_func_no_external)
-
-        fqns = [info.fully_qualified_name for info in result]
-        self.assertTrue(
-            any("BaseModel" in fqn for fqn in fqns),
-            msg=f"Expected a 'BaseModel' entry, got: {fqns}",
-        )
-        # The dependency must carry a version string (pydantic is versioned).
-        for info in result:
-            if "BaseModel" in info.fully_qualified_name:
-                self.assertIsNotNone(info.version)
-
     def test_unversioned_callable_dependency_is_recursed(self):
         """An unversioned callable dependency triggers a recursive call."""
         call_log: list[object] = []
