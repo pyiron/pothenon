@@ -9,7 +9,7 @@ from typing import Any
 
 from pyiron_snippets import versions
 
-from flowrep.parsers import object_scope
+from pothenon import object_scope
 
 CallDependencies = dict[versions.VersionInfo, object]
 

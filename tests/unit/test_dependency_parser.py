@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 from pyiron_snippets import versions
 
-from flowrep.parsers import dependency_parser
+from pothenon import dependency_parser
 
 
 class TestSplitByVersionAvailability(unittest.TestCase):
@@ -193,7 +193,7 @@ class TestFindUndefinedVariables(unittest.TestCase):
     def test_syntax_error_in_source_returns_empty_dict(self):
         """When ``ast.parse`` raises ``SyntaxError``, the result must be ``{}``."""
         with patch(
-            "flowrep.parsers.dependency_parser.ast.parse", side_effect=SyntaxError
+            "pothenon.dependency_parser.ast.parse", side_effect=SyntaxError
         ):
             result = dependency_parser.find_undefined_variables(test_function)
         self.assertEqual(result, {})
