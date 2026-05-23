@@ -1,8 +1,8 @@
 import ast
 import importlib
 
-from flowrep.parsers import object_scope
-from flowrep.parsers.object_scope import ScopeProxy
+from pothenon import object_scope
+from pothenon.object_scope import ScopeProxy
 
 
 def build_scope(

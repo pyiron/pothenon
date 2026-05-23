@@ -2,7 +2,7 @@ import ast
 import os
 import unittest
 
-from flowrep.parsers import import_parser
+from pothenon import import_parser
 
 
 class TestBuildScope(unittest.TestCase):
