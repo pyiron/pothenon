@@ -2,7 +2,6 @@ import ast
 import importlib
 
 from pothenon import object_scope
-from pothenon.object_scope import ScopeProxy
 
 
 def build_scope(
@@ -20,7 +19,7 @@ def build_scope(
         object_scope.ScopeProxy: A mutable mapping representing the scope with imported
             modules and objects.
     """
-    scope = ScopeProxy()
+    scope = object_scope.ScopeProxy()
 
     imports = imports or []
     import_froms = import_froms or []
