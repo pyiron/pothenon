@@ -263,6 +263,21 @@ class TestResolveSymbolToObject(unittest.TestCase):
         f = object_scope.resolve_attribute_to_object("ast.literal_eval", scope)
         self.assertIs(f, ast.literal_eval)
 
+    def test_resolve_attribute_falsy_intermediate(self):
+        """Falsy intermediate values (e.g. 0) must not cause fallback to scope."""
+
+        class Container:
+            value = 0
+
+        class Wrapper:
+            inner = Container()
+
+        scope = object_scope.ScopeProxy({"w": Wrapper})
+        # w.inner.value is 0 (falsy); the old `obj or scope` would re-use scope
+        # and fail with AttributeError instead of returning 0.
+        result = object_scope.resolve_attribute_to_object("w.inner.value", scope)
+        self.assertEqual(result, 0)
+
 
 if __name__ == "__main__":
     unittest.main()
