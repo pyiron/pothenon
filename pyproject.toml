@@ -23,7 +23,6 @@ classifiers = [
 ]
 dependencies = [
     "pyiron_snippets==1.2.1",
-    "numpy==2.4.6",
 ]
 dynamic = [ "version",]
 authors = [
