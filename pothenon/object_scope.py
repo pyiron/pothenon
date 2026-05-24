@@ -111,11 +111,11 @@ def resolve_attribute_to_object(attribute: str, scope: ScopeProxy | object) -> o
     Returns:
         The object that the attribute resolves to in the given scope.
     """
-    obj = None
+    current: object = scope
     try:
         for attr in attribute.split("."):
-            obj = getattr(obj or scope, attr)
-        return obj
+            current = getattr(current, attr)
+        return current
     except AttributeError as e:
         raise ValueError(f"Could not find attribute '{attr}' of {attribute}") from e
 
