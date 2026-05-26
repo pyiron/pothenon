@@ -7,7 +7,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pothenon"
-description = "pothenon - Your pyiron-like module."
+description = "pothenon - dependency parser for python functions"
 readme = "docs/README.md"
 keywords = [ "pyiron",]
 requires-python = ">=3.11, <3.14"
@@ -26,7 +26,7 @@ dependencies = [
 ]
 dynamic = [ "version",]
 authors = [
-    { name = "Lorem Ipsum", email = "lorem@ipsum.com" },
+    { name = "Sam Waseda", email = "waseda@mpie.de" },
 ]
 
 [project.license]
