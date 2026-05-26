@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 import builtins
+import dataclasses
 import inspect
 import textwrap
 from collections.abc import Callable
@@ -11,7 +12,17 @@ from pyiron_snippets import versions
 
 from pothenon import object_scope
 
-CallDependencies = dict[versions.VersionInfo, object]
+
+@dataclasses.dataclass(frozen=True)
+class PackageInfo:
+
+    module: str
+    obj: object
+    localname: str
+    qualname: str | None
+    version: str | None
+
+CallDependencies = dict[str, PackageInfo]
 
 
 def split_by_version_availability(
@@ -29,7 +40,7 @@ def split_by_version_availability(
     has_version: CallDependencies = {}
     no_version: CallDependencies = {}
     for info, dependency in call_dependencies.items():
-        if info.version is None:
+        if dependency.version is None:
             no_version[info] = dependency
         else:
             has_version[info] = dependency
@@ -157,9 +168,16 @@ def get_call_dependencies(
     visited.add(func_fqn)
 
     # Find variables that are used but not defined
-    for obj in find_undefined_variables(func_or_var).values():
+    for name, obj in find_undefined_variables(func_or_var).items():
         info = versions.VersionInfo.of(obj, version_scraping=version_scraping)
-        call_dependencies[info] = obj
+        package_info = PackageInfo(
+            module=info.module,
+            obj=obj,
+            localname=name,
+            qualname=info.qualname,
+            version=info.version,
+        )
+        call_dependencies[info.fully_qualified_name] = package_info
 
         if (callable(obj) or isinstance(obj, type)) and info.version is None:
             get_call_dependencies(obj, version_scraping, call_dependencies, visited)
