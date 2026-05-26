@@ -122,7 +122,7 @@ def find_undefined_variables(
 
     If the source code for *func_or_var* cannot be retrieved or parsed (e.g.,
     for certain built-in objects or when no source is available), this
-    function returns an empty set instead of raising an exception.
+    function returns an empty dict instead of raising an exception.
     """
     try:
         # Prefer actual source code over string representations for both
