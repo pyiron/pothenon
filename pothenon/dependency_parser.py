@@ -22,6 +22,7 @@ class PackageInfo:
     qualname: str | None
     version: str | None
 
+
 CallDependencies = dict[str, PackageInfo]
 
 

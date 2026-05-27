@@ -11,10 +11,18 @@ from pothenon import dependency_parser
 class TestSplitByVersionAvailability(unittest.TestCase):
     def test_split_by_version_availability(self):
         pkg_with_version = dependency_parser.PackageInfo(
-            module="pkg_a", obj=object(), localname="a", qualname="pkg_a.A", version="1.0.0"
+            module="pkg_a",
+            obj=object(),
+            localname="a",
+            qualname="pkg_a.A",
+            version="1.0.0",
         )
         pkg_no_version = dependency_parser.PackageInfo(
-            module="pkg_b", obj=object(), localname="b", qualname="pkg_b.B", version=None
+            module="pkg_b",
+            obj=object(),
+            localname="b",
+            qualname="pkg_b.B",
+            version=None,
         )
 
         call_dependencies = {
