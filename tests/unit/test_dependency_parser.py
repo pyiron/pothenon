@@ -4,6 +4,7 @@ import unittest
 from unittest.mock import patch
 
 from pyiron_snippets import versions
+from pyiron_snippets.versions import VersionInfo
 
 from pothenon import dependency_parser
 
@@ -222,6 +223,11 @@ def _helper_func(z):
     return z * 2
 
 
+def _func_with_versioned_dependency():
+    """Function that uses a real imported dependency with package metadata."""
+    return VersionInfo
+
+
 class TestGetCallDependencies(unittest.TestCase):
     def test_no_external_dependencies(self):
         """A function that only uses its own arguments returns an empty dict."""
@@ -284,6 +290,15 @@ class TestGetCallDependencies(unittest.TestCase):
         self.assertIn(non_callable_dep, obj_values)
         # find_undefined_variables must NOT have been called for the integer.
         self.assertNotIn(non_callable_dep, call_log)
+
+    def test_records_package_info_metadata_for_real_dependency(self):
+        result = dependency_parser.get_call_dependencies(_func_with_versioned_dependency)
+
+        dependency = result["pyiron_snippets.versions.VersionInfo"]
+        self.assertIs(dependency.obj, VersionInfo)
+        self.assertEqual(dependency.localname, "VersionInfo")
+        self.assertEqual(dependency.qualname, "VersionInfo")
+        self.assertEqual(dependency.version, "1.2.1")
 
 
 if __name__ == "__main__":
