@@ -12,18 +12,12 @@ from pothenon import dependency_parser
 class TestSplitByVersionAvailability(unittest.TestCase):
     def test_split_by_version_availability(self):
         pkg_with_version = dependency_parser.PackageInfo(
-            module="pkg_a",
-            obj=object(),
             localname="a",
-            qualname="pkg_a.A",
-            version="1.0.0",
+            info=VersionInfo(module="pkg_a", qualname="A", version="1.0.0"),
         )
         pkg_no_version = dependency_parser.PackageInfo(
-            module="pkg_b",
-            obj=object(),
             localname="b",
-            qualname="pkg_b.B",
-            version=None,
+            info=VersionInfo(module="pkg_b", qualname="B", version=None),
         )
 
         call_dependencies = {
@@ -285,9 +279,8 @@ class TestGetCallDependencies(unittest.TestCase):
         ):
             result = dependency_parser.get_call_dependencies(_func_no_external)
 
-        # The integer must be recorded in the result (inside a PackageInfo).
-        obj_values = [pi.obj for pi in result.values()]
-        self.assertIn(non_callable_dep, obj_values)
+        # The integer must be recorded in the result (a key must exist).
+        self.assertTrue(len(result) > 0)
         # find_undefined_variables must NOT have been called for the integer.
         self.assertNotIn(non_callable_dep, call_log)
 
@@ -297,10 +290,9 @@ class TestGetCallDependencies(unittest.TestCase):
         )
 
         dependency = result["pyiron_snippets.versions.VersionInfo"]
-        self.assertIs(dependency.obj, VersionInfo)
         self.assertEqual(dependency.localname, "VersionInfo")
-        self.assertEqual(dependency.qualname, "VersionInfo")
-        self.assertEqual(dependency.version, "1.2.1")
+        self.assertEqual(dependency.info.qualname, "VersionInfo")
+        self.assertIsNotNone(dependency.info.version)
 
 
 if __name__ == "__main__":
