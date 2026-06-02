@@ -292,7 +292,9 @@ class TestGetCallDependencies(unittest.TestCase):
         self.assertNotIn(non_callable_dep, call_log)
 
     def test_records_package_info_metadata_for_real_dependency(self):
-        result = dependency_parser.get_call_dependencies(_func_with_versioned_dependency)
+        result = dependency_parser.get_call_dependencies(
+            _func_with_versioned_dependency
+        )
 
         dependency = result["pyiron_snippets.versions.VersionInfo"]
         self.assertIs(dependency.obj, VersionInfo)
