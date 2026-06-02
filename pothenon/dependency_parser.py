@@ -4,6 +4,7 @@ import ast
 import builtins
 import inspect
 import textwrap
+import typing
 from collections.abc import Callable
 from typing import Any
 
@@ -11,7 +12,13 @@ from pyiron_snippets import versions
 
 from pothenon import object_scope
 
-CallDependencies = dict[versions.VersionInfo, object]
+
+class PackageInfo(typing.NamedTuple):
+    localname: str
+    info: versions.VersionInfo
+
+
+CallDependencies = dict[str, PackageInfo]
 
 
 def split_by_version_availability(
@@ -29,7 +36,7 @@ def split_by_version_availability(
     has_version: CallDependencies = {}
     no_version: CallDependencies = {}
     for info, dependency in call_dependencies.items():
-        if info.version is None:
+        if dependency.info.version is None:
             no_version[info] = dependency
         else:
             has_version[info] = dependency
@@ -111,7 +118,7 @@ def find_undefined_variables(
 
     If the source code for *func_or_var* cannot be retrieved or parsed (e.g.,
     for certain built-in objects or when no source is available), this
-    function returns an empty set instead of raising an exception.
+    function returns an empty dict instead of raising an exception.
     """
     try:
         # Prefer actual source code over string representations for both
@@ -157,9 +164,9 @@ def get_call_dependencies(
     visited.add(func_fqn)
 
     # Find variables that are used but not defined
-    for obj in find_undefined_variables(func_or_var).values():
+    for name, obj in find_undefined_variables(func_or_var).items():
         info = versions.VersionInfo.of(obj, version_scraping=version_scraping)
-        call_dependencies[info] = obj
+        call_dependencies[info.fully_qualified_name] = PackageInfo(name, info)
 
         if (callable(obj) or isinstance(obj, type)) and info.version is None:
             get_call_dependencies(obj, version_scraping, call_dependencies, visited)

@@ -1,33 +1,38 @@
 import ast
 import textwrap
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from pyiron_snippets import versions
+from pyiron_snippets.versions import VersionInfo
 
 from pothenon import dependency_parser
 
 
 class TestSplitByVersionAvailability(unittest.TestCase):
     def test_split_by_version_availability(self):
-        mock_version_1 = MagicMock(version="1.0.0")
-        mock_version_2 = MagicMock(version=None)
-        mock_func_1 = MagicMock()
-        mock_func_2 = MagicMock()
+        pkg_with_version = dependency_parser.PackageInfo(
+            localname="a",
+            info=VersionInfo(module="pkg_a", qualname="A", version="1.0.0"),
+        )
+        pkg_no_version = dependency_parser.PackageInfo(
+            localname="b",
+            info=VersionInfo(module="pkg_b", qualname="B", version=None),
+        )
 
         call_dependencies = {
-            mock_version_1: mock_func_1,
-            mock_version_2: mock_func_2,
+            "pkg_a.A": pkg_with_version,
+            "pkg_b.B": pkg_no_version,
         }
 
         has_version, no_version = dependency_parser.split_by_version_availability(
             call_dependencies
         )
 
-        self.assertIn(mock_version_1, has_version)
-        self.assertIn(mock_version_2, no_version)
-        self.assertNotIn(mock_version_1, no_version)
-        self.assertNotIn(mock_version_2, has_version)
+        self.assertIn("pkg_a.A", has_version)
+        self.assertIn("pkg_b.B", no_version)
+        self.assertNotIn("pkg_a.A", no_version)
+        self.assertNotIn("pkg_b.B", has_version)
 
 
 class TestUndefinedVariableVisitor(unittest.TestCase):
@@ -212,6 +217,11 @@ def _helper_func(z):
     return z * 2
 
 
+def _func_with_versioned_dependency():
+    """Function that uses a real imported dependency with package metadata."""
+    return VersionInfo
+
+
 class TestGetCallDependencies(unittest.TestCase):
     def test_no_external_dependencies(self):
         """A function that only uses its own arguments returns an empty dict."""
@@ -269,11 +279,20 @@ class TestGetCallDependencies(unittest.TestCase):
         ):
             result = dependency_parser.get_call_dependencies(_func_no_external)
 
-        # The integer must be recorded in the result.
-        values = list(result.values())
-        self.assertIn(non_callable_dep, values)
+        # The integer must be recorded in the result (a key must exist).
+        self.assertTrue(len(result) > 0)
         # find_undefined_variables must NOT have been called for the integer.
         self.assertNotIn(non_callable_dep, call_log)
+
+    def test_records_package_info_metadata_for_real_dependency(self):
+        result = dependency_parser.get_call_dependencies(
+            _func_with_versioned_dependency
+        )
+
+        dependency = result["pyiron_snippets.versions.VersionInfo"]
+        self.assertEqual(dependency.localname, "VersionInfo")
+        self.assertEqual(dependency.info.qualname, "VersionInfo")
+        self.assertIsNotNone(dependency.info.version)
 
 
 if __name__ == "__main__":
