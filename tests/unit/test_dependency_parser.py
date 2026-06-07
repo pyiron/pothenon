@@ -224,6 +224,7 @@ def _func_with_versioned_dependency():
 
 class _UnversionedClass:
     """A locally-defined class that has no package version."""
+
     pass
 
 
