@@ -166,11 +166,11 @@ def get_call_dependencies(
     # Find variables that are used but not defined
     for name, obj in find_undefined_variables(func_or_var).items():
         info = versions.VersionInfo.of(obj, version_scraping=version_scraping)
-        call_dependencies[info.fully_qualified_name] = PackageInfo(name, info)
 
         if info.version is None:
             if inspect.isclass(obj):
                 raise TypeError(f"{name!r} is a class without a version")
             if callable(obj):
                 get_call_dependencies(obj, version_scraping, call_dependencies, visited)
+        call_dependencies[info.fully_qualified_name] = PackageInfo(name, info)
     return call_dependencies
