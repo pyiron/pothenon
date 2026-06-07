@@ -222,6 +222,17 @@ def _func_with_versioned_dependency():
     return VersionInfo
 
 
+class _UnversionedClass:
+    """A locally-defined class that has no package version."""
+
+    pass
+
+
+def _func_with_unversioned_class():
+    """Function whose only dependency is a locally-defined class (no version)."""
+    return _UnversionedClass()
+
+
 class TestGetCallDependencies(unittest.TestCase):
     def test_no_external_dependencies(self):
         """A function that only uses its own arguments returns an empty dict."""
@@ -293,6 +304,18 @@ class TestGetCallDependencies(unittest.TestCase):
         self.assertEqual(dependency.localname, "VersionInfo")
         self.assertEqual(dependency.info.qualname, "VersionInfo")
         self.assertIsNotNone(dependency.info.version)
+
+    def test_versioned_class_dependency_does_not_raise(self):
+        """A class dependency that has a version must not raise."""
+        result = dependency_parser.get_call_dependencies(
+            _func_with_versioned_dependency
+        )
+        self.assertIn("pyiron_snippets.versions.VersionInfo", result)
+
+    def test_unversioned_class_dependency_raises_type_error(self):
+        """A class dependency without a version must raise TypeError."""
+        with self.assertRaises(TypeError):
+            dependency_parser.get_call_dependencies(_func_with_unversioned_class)
 
 
 if __name__ == "__main__":
