@@ -167,7 +167,7 @@ def get_call_dependencies(
     for name, obj in find_undefined_variables(func_or_var).items():
         info = versions.VersionInfo.of(obj, version_scraping=version_scraping)
 
-        if not info.has_version:
+        if info.version is None:
             if inspect.isclass(obj):
                 raise TypeError(f"{name!r} is a class without a version")
             if callable(obj):
