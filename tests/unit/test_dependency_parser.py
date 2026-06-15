@@ -341,7 +341,7 @@ class TestGetCallDependencies(unittest.TestCase):
 
         # The result should contain json.dumps from the stdlib (via the helper)
         self.assertTrue(
-            any("json" in key for key in result.keys()),
+            any("json" in key for key in result),
             f"Expected json dependency in result keys: {list(result.keys())}",
         )
 
