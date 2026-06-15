@@ -16,6 +16,8 @@ from pothenon import object_scope
 class PackageInfo(typing.NamedTuple):
     localname: str
     info: versions.VersionInfo
+    source_code: str | None = None
+    dependency: dict[str, PackageInfo] | None = None
 
 
 CallDependencies = dict[str, PackageInfo]
@@ -171,6 +173,14 @@ def get_call_dependencies(
             if inspect.isclass(obj):
                 raise TypeError(f"{name!r} is a class without a version")
             if callable(obj):
-                get_call_dependencies(obj, version_scraping, call_dependencies, visited)
-        call_dependencies[info.fully_qualified_name] = PackageInfo(name, info)
+                call_dependencies[info.fully_qualified_name] = PackageInfo(
+                    name,
+                    info,
+                    source_code=inspect.getsource(obj),
+                    dependency=get_call_dependencies(
+                        obj, version_scraping, call_dependencies, visited
+                    ),
+                )
+        else:
+            call_dependencies[info.fully_qualified_name] = PackageInfo(name, info)
     return call_dependencies
