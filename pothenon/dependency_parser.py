@@ -32,6 +32,13 @@ def _to_import_statement(info: versions.VersionInfo, localname: str) -> str:
             return f"import {info.module}"
         return f"import {info.module} as {localname}"
 
+    if "." in info.qualname:
+        qualname_parent, qualname_name = info.qualname.rsplit(".", 1)
+        from_module = f"{info.module}.{qualname_parent}"
+        if qualname_name == localname:
+            return f"from {from_module} import {qualname_name}"
+        return f"from {from_module} import {qualname_name} as {localname}"
+
     if info.qualname == localname:
         return f"from {info.module} import {info.qualname}"
     return f"from {info.module} import {info.qualname} as {localname}"
@@ -47,7 +54,7 @@ class PackageInfo(typing.NamedTuple):
     def import_statement(self) -> str:
         return (
             _to_import_statement(self.info, self.localname) + "\n"
-            if self.info.version
+            if self.info.version is not None
             else ""
         )
 

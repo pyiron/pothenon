@@ -53,6 +53,9 @@ class TestImportStatements(unittest.TestCase):
     def test_to_import_statement_without_qualname(self):
         dotted = VersionInfo(module="package.module", qualname=None, version="1.2.3")
         top_level = VersionInfo(module="json", qualname=None, version="1.2.3")
+        deep_dotted = VersionInfo(
+            module="mod.submod.subsubmod", qualname=None, version="1.2.3"
+        )
 
         self.assertEqual(
             dependency_parser._to_import_statement(dotted, "module_alias"),
@@ -60,7 +63,27 @@ class TestImportStatements(unittest.TestCase):
         )
         self.assertEqual(
             dependency_parser._to_import_statement(top_level, "json_alias"),
-            "import json",
+            "import json as json_alias",
+        )
+        self.assertEqual(
+            dependency_parser._to_import_statement(deep_dotted, "subsubmod"),
+            "from mod.submod import subsubmod",
+        )
+        self.assertEqual(
+            dependency_parser._to_import_statement(deep_dotted, "subsubmod_alias"),
+            "from mod.submod import subsubmod as subsubmod_alias",
+        )
+
+    def test_to_import_statement_with_dotted_qualname(self):
+        info = VersionInfo(module="mod", qualname="Scope.Target", version="1.2.3")
+
+        self.assertEqual(
+            dependency_parser._to_import_statement(info, "Target"),
+            "from mod.Scope import Target",
+        )
+        self.assertEqual(
+            dependency_parser._to_import_statement(info, "TargetAlias"),
+            "from mod.Scope import Target as TargetAlias",
         )
 
     def test_package_info_import_statement_property(self):
