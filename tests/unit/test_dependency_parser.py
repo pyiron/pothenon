@@ -1,5 +1,6 @@
 import ast
 import json
+import json as json_alias
 import textwrap
 import unittest
 from unittest.mock import patch
@@ -244,6 +245,15 @@ def _func_calling_helper_with_external_dep():
     return _func_using_json()
 
 
+def _func_with_duplicate_fqn_different_localnames():
+    """Function that uses the same package under different local names.
+
+    This tests that local names (not fully qualified names) are used as keys,
+    preventing collisions when the same package is imported with different aliases.
+    """
+    return json.dumps({}) + json_alias.dumps({})
+
+
 class TestGetCallDependencies(unittest.TestCase):
     def test_no_external_dependencies(self):
         """A function that only uses its own arguments returns an empty dict."""
@@ -344,6 +354,26 @@ class TestGetCallDependencies(unittest.TestCase):
             any("json" in key for key in result),
             f"Expected json dependency in result keys: {list(result.keys())}",
         )
+
+    def test_same_fqn_different_localnames_no_collision(self):
+        """When the same package is imported with different local names, both should be in the result.
+
+        This verifies the fix: using local names as keys (not fully qualified names)
+        prevents collisions when the same package is imported with different aliases
+        (e.g., `import numpy` and `import numpy as np`).
+        """
+        result = dependency_parser.get_call_dependencies(
+            _func_with_duplicate_fqn_different_localnames
+        )
+
+        # Both local names should be present (not overwritten)
+        self.assertIn("json", result)
+        self.assertIn("json_alias", result)
+        self.assertEqual(len(result), 2)
+
+        # Both should have the same fully qualified name (json)
+        self.assertEqual(result["json"].info.module, "json")
+        self.assertEqual(result["json_alias"].info.module, "json")
 
 
 if __name__ == "__main__":
