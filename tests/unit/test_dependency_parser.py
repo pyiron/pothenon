@@ -22,18 +22,18 @@ class TestSplitByVersionAvailability(unittest.TestCase):
         )
 
         call_dependencies = {
-            "pkg_a.A": pkg_with_version,
-            "pkg_b.B": pkg_no_version,
+            "a": pkg_with_version,
+            "b": pkg_no_version,
         }
 
         has_version, no_version = dependency_parser.split_by_version_availability(
             call_dependencies
         )
 
-        self.assertIn("pkg_a.A", has_version)
-        self.assertIn("pkg_b.B", no_version)
-        self.assertNotIn("pkg_a.A", no_version)
-        self.assertNotIn("pkg_b.B", has_version)
+        self.assertIn("a", has_version)
+        self.assertIn("b", no_version)
+        self.assertNotIn("a", no_version)
+        self.assertNotIn("b", has_version)
 
 
 class TestUndefinedVariableVisitor(unittest.TestCase):
@@ -311,7 +311,7 @@ class TestGetCallDependencies(unittest.TestCase):
             _func_with_versioned_dependency
         )
 
-        dependency = result["pyiron_snippets.versions.VersionInfo"]
+        dependency = result["VersionInfo"]
         self.assertEqual(dependency.localname, "VersionInfo")
         self.assertEqual(dependency.info.qualname, "VersionInfo")
         self.assertIsNotNone(dependency.info.version)
@@ -321,7 +321,7 @@ class TestGetCallDependencies(unittest.TestCase):
         result = dependency_parser.get_call_dependencies(
             _func_with_versioned_dependency
         )
-        self.assertIn("pyiron_snippets.versions.VersionInfo", result)
+        self.assertIn("VersionInfo", result)
 
     def test_unversioned_class_dependency_raises_type_error(self):
         """A class dependency without a version must raise TypeError."""

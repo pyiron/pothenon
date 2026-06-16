@@ -173,7 +173,7 @@ def get_call_dependencies(
             if inspect.isclass(obj):
                 raise TypeError(f"{name!r} is a class without a version")
             if callable(obj):
-                call_dependencies[info.fully_qualified_name] = PackageInfo(
+                call_dependencies[name] = PackageInfo(
                     name,
                     info,
                     source_code=inspect.getsource(obj),
@@ -182,5 +182,5 @@ def get_call_dependencies(
                     ),
                 )
         else:
-            call_dependencies[info.fully_qualified_name] = PackageInfo(name, info)
+            call_dependencies[name] = PackageInfo(name, info)
     return call_dependencies
