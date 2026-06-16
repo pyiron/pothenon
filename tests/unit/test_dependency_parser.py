@@ -80,7 +80,8 @@ class TestImportStatements(unittest.TestCase):
         )
 
         self.assertEqual(
-            versioned.import_statement, "from pyiron_snippets.versions import VersionInfo\n"
+            versioned.import_statement,
+            "from pyiron_snippets.versions import VersionInfo\n",
         )
         self.assertEqual(unversioned.import_statement, "")
 
