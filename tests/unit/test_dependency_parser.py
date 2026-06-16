@@ -1,4 +1,5 @@
 import ast
+import json
 import textwrap
 import unittest
 from unittest.mock import patch
@@ -233,6 +234,16 @@ def _func_with_unversioned_class():
     return _UnversionedClass()
 
 
+def _func_using_json():
+    """Helper function that uses json from stdlib."""
+    return json.dumps({"key": "value"})
+
+
+def _func_calling_helper_with_external_dep():
+    """Function that calls another function which depends on an external package."""
+    return _func_using_json()
+
+
 class TestGetCallDependencies(unittest.TestCase):
     def test_no_external_dependencies(self):
         """A function that only uses its own arguments returns an empty dict."""
@@ -316,6 +327,23 @@ class TestGetCallDependencies(unittest.TestCase):
         """A class dependency without a version must raise TypeError."""
         with self.assertRaises(TypeError):
             dependency_parser.get_call_dependencies(_func_with_unversioned_class)
+
+    def test_recursive_dependency_detection(self):
+        """When f calls g and g uses an external package, get_call_dependencies(f) should detect the package.
+
+        This test verifies that dependency detection is recursive: if function f depends on
+        unversioned callable g, and g depends on a versioned external package (e.g., json.dumps),
+        then calling get_call_dependencies(f) should include json in the results.
+        """
+        result = dependency_parser.get_call_dependencies(
+            _func_calling_helper_with_external_dep
+        )
+
+        # The result should contain json.dumps from the stdlib (via the helper)
+        self.assertTrue(
+            any("json" in key for key in result),
+            f"Expected json dependency in result keys: {list(result.keys())}",
+        )
 
 
 if __name__ == "__main__":
