@@ -13,30 +13,28 @@ from pyiron_snippets import versions
 from pothenon import object_scope
 
 
-def _to_import_statement(info: PackageInfo, localname: str) -> str:
+def _to_import_statement(info: versions.VersionInfo, localname: str) -> str:
     # module: A.B, qualname: C, localname: C -> "from A.B import C"
     # module: A.B, qualname: C, localname: D -> "from A.B import C as D"
     # module: A.B, qualname: None, localname: C -> "from A import B as C"
-    # module: A, qualname: B localname: B -> "from A import B"
-    # module: A, qualname: B localname: C -> "from A import B as C"
+    # module: A, qualname: B, localname: B -> "from A import B"
+    # module: A, qualname: B, localname: C -> "from A import B as C"
     # module: A, qualname: None, localname: A -> "import A"
+    # module: A, qualname: None, localname: B -> "import A as B"
     if info.qualname is None:
         if "." in info.module:
-            module_parts = info.module.split(".")
-            # module: A.B, qualname: None, localname: C -> "from A import B as C"
-            return f"from {module_parts[0]} import {module_parts[1]} as {localname}"
-        else:
-            # module: A, qualname: None, localname: A -> "import A"
+            pkg, mod = info.module.rsplit(".", 1)
+            if mod == localname:
+                return f"from {pkg} import {mod}"
+            return f"from {pkg} import {mod} as {localname}"
+
+        if info.module == localname:
             return f"import {info.module}"
-    else:
-        # module: A.B, qualname: C, localname: C -> "from A.B import C"
-        # module: A.B, qualname: C, localname: D -> "from A.B import C as D"
-        # module: A, qualname: B localname: B -> "from A import B"
-        # module: A, qualname: B localname: C -> "from A import B as C"
-        if info.qualname == localname:
-            return f"from {info.module} import {info.qualname}"
-        else:
-            return f"from {info.module} import {info.qualname} as {localname}"
+        return f"import {info.module} as {localname}"
+
+    if info.qualname == localname:
+        return f"from {info.module} import {info.qualname}"
+    return f"from {info.module} import {info.qualname} as {localname}"
 
 
 class PackageInfo(typing.NamedTuple):
