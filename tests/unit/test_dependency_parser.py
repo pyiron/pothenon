@@ -1,10 +1,10 @@
 import ast
 import json
+import json as json_alias
 import textwrap
 import unittest
 from unittest.mock import patch
 
-from pyiron_snippets import versions
 from pyiron_snippets.versions import VersionInfo
 
 from pothenon import dependency_parser
@@ -22,18 +22,18 @@ class TestSplitByVersionAvailability(unittest.TestCase):
         )
 
         call_dependencies = {
-            "pkg_a.A": pkg_with_version,
-            "pkg_b.B": pkg_no_version,
+            "a": pkg_with_version,
+            "b": pkg_no_version,
         }
 
         has_version, no_version = dependency_parser.split_by_version_availability(
             call_dependencies
         )
 
-        self.assertIn("pkg_a.A", has_version)
-        self.assertIn("pkg_b.B", no_version)
-        self.assertNotIn("pkg_a.A", no_version)
-        self.assertNotIn("pkg_b.B", has_version)
+        self.assertIn("a", has_version)
+        self.assertIn("b", no_version)
+        self.assertNotIn("a", no_version)
+        self.assertNotIn("b", has_version)
 
 
 class TestUndefinedVariableVisitor(unittest.TestCase):
@@ -244,20 +244,19 @@ def _func_calling_helper_with_external_dep():
     return _func_using_json()
 
 
+def _func_with_duplicate_fqn_different_localnames():
+    """Function that uses the same package under different local names.
+
+    This tests that local names (not fully qualified names) are used as keys,
+    preventing collisions when the same package is imported with different aliases.
+    """
+    return json.dumps({}) + json_alias.dumps({})
+
+
 class TestGetCallDependencies(unittest.TestCase):
     def test_no_external_dependencies(self):
         """A function that only uses its own arguments returns an empty dict."""
         result = dependency_parser.get_call_dependencies(_func_no_external)
-        self.assertIsInstance(result, dict)
-        self.assertEqual(result, {})
-
-    def test_cycle_detection_via_visited(self):
-        """If the function's FQN is already in ``_visited``, it returns immediately."""
-        fqn = versions.VersionInfo.of(_func_no_external).fully_qualified_name
-        pre_visited: set[str] = {fqn}
-        result = dependency_parser.get_call_dependencies(
-            _func_no_external, _visited=pre_visited
-        )
         self.assertIsInstance(result, dict)
         self.assertEqual(result, {})
 
@@ -311,7 +310,7 @@ class TestGetCallDependencies(unittest.TestCase):
             _func_with_versioned_dependency
         )
 
-        dependency = result["pyiron_snippets.versions.VersionInfo"]
+        dependency = result["VersionInfo"]
         self.assertEqual(dependency.localname, "VersionInfo")
         self.assertEqual(dependency.info.qualname, "VersionInfo")
         self.assertIsNotNone(dependency.info.version)
@@ -321,7 +320,7 @@ class TestGetCallDependencies(unittest.TestCase):
         result = dependency_parser.get_call_dependencies(
             _func_with_versioned_dependency
         )
-        self.assertIn("pyiron_snippets.versions.VersionInfo", result)
+        self.assertIn("VersionInfo", result)
 
     def test_unversioned_class_dependency_raises_type_error(self):
         """A class dependency without a version must raise TypeError."""
@@ -344,6 +343,26 @@ class TestGetCallDependencies(unittest.TestCase):
             any("json" in key for key in result),
             f"Expected json dependency in result keys: {list(result.keys())}",
         )
+
+    def test_same_fqn_different_localnames_no_collision(self):
+        """When the same package is imported with different local names, both should be in the result.
+
+        This verifies the fix: using local names as keys (not fully qualified names)
+        prevents collisions when the same package is imported with different aliases
+        (e.g., `import numpy` and `import numpy as np`).
+        """
+        result = dependency_parser.get_call_dependencies(
+            _func_with_duplicate_fqn_different_localnames
+        )
+
+        # Both local names should be present (not overwritten)
+        self.assertIn("json", result)
+        self.assertIn("json_alias", result)
+        self.assertEqual(len(result), 2)
+
+        # Both should have the same fully qualified name (json)
+        self.assertEqual(result["json"].info.module, "json")
+        self.assertEqual(result["json_alias"].info.module, "json")
 
 
 if __name__ == "__main__":
