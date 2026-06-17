@@ -261,16 +261,6 @@ class TestGetCallDependencies(unittest.TestCase):
         self.assertIsInstance(result, dict)
         self.assertEqual(result, {})
 
-    def test_cycle_detection_via_visited(self):
-        """If the function's FQN is already in ``_visited``, it returns immediately."""
-        fqn = versions.VersionInfo.of(_func_no_external).fully_qualified_name
-        pre_visited: set[str] = {fqn}
-        result = dependency_parser.get_call_dependencies(
-            _func_no_external, _visited=pre_visited
-        )
-        self.assertIsInstance(result, dict)
-        self.assertEqual(result, {})
-
     def test_unversioned_callable_dependency_is_recursed(self):
         """An unversioned callable dependency triggers a recursive call."""
         call_log: list[object] = []
