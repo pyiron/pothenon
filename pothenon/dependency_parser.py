@@ -193,16 +193,9 @@ def get_call_dependencies(
     func_or_var: Callable[..., Any] | type[Any],
     version_scraping: versions.VersionScrapingMap | None = None,
     _call_dependencies: CallDependencies | None = None,
-    _visited: set[str] | None = None,
 ) -> CallDependencies:
 
     call_dependencies: CallDependencies = _call_dependencies or {}
-    visited: set[str] = _visited or set()
-
-    func_fqn = versions.VersionInfo.of(func_or_var).fully_qualified_name
-    if func_fqn in visited:
-        return call_dependencies
-    visited.add(func_fqn)
 
     # Find variables that are used but not defined
     for name, obj in find_undefined_variables(func_or_var).items():
@@ -217,7 +210,7 @@ def get_call_dependencies(
                     info,
                     source_code=inspect.getsource(obj),
                     dependency=get_call_dependencies(
-                        obj, version_scraping, call_dependencies, visited
+                        obj, version_scraping, call_dependencies
                     ),
                 )
         else:

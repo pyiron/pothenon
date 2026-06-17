@@ -5,7 +5,6 @@ import textwrap
 import unittest
 from unittest.mock import patch
 
-from pyiron_snippets import versions
 from pyiron_snippets.versions import VersionInfo
 
 from pothenon import dependency_parser
@@ -330,16 +329,6 @@ class TestGetCallDependencies(unittest.TestCase):
     def test_no_external_dependencies(self):
         """A function that only uses its own arguments returns an empty dict."""
         result = dependency_parser.get_call_dependencies(_func_no_external)
-        self.assertIsInstance(result, dict)
-        self.assertEqual(result, {})
-
-    def test_cycle_detection_via_visited(self):
-        """If the function's FQN is already in ``_visited``, it returns immediately."""
-        fqn = versions.VersionInfo.of(_func_no_external).fully_qualified_name
-        pre_visited: set[str] = {fqn}
-        result = dependency_parser.get_call_dependencies(
-            _func_no_external, _visited=pre_visited
-        )
         self.assertIsInstance(result, dict)
         self.assertEqual(result, {})
 
