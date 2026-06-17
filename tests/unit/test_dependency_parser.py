@@ -5,7 +5,6 @@ import textwrap
 import unittest
 from unittest.mock import patch
 
-from pyiron_snippets import versions
 from pyiron_snippets.versions import VersionInfo
 
 from pothenon import dependency_parser
