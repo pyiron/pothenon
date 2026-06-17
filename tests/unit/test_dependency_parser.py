@@ -36,6 +36,78 @@ class TestSplitByVersionAvailability(unittest.TestCase):
         self.assertNotIn("b", has_version)
 
 
+class TestImportStatements(unittest.TestCase):
+    def test_to_import_statement_with_qualname(self):
+        info = VersionInfo(module="package.module", qualname="Thing", version="1.2.3")
+
+        self.assertEqual(
+            dependency_parser._to_import_statement(info, "Thing"),
+            "from package.module import Thing",
+        )
+        self.assertEqual(
+            dependency_parser._to_import_statement(info, "Alias"),
+            "from package.module import Thing as Alias",
+        )
+
+    def test_to_import_statement_without_qualname(self):
+        dotted = VersionInfo(module="package.module", qualname=None, version="1.2.3")
+        top_level = VersionInfo(module="json", qualname=None, version="1.2.3")
+        deep_dotted = VersionInfo(
+            module="mod.submod.subsubmod", qualname=None, version="1.2.3"
+        )
+
+        self.assertEqual(
+            dependency_parser._to_import_statement(dotted, "module_alias"),
+            "from package import module as module_alias",
+        )
+        self.assertEqual(
+            dependency_parser._to_import_statement(top_level, "json_alias"),
+            "import json as json_alias",
+        )
+        self.assertEqual(
+            dependency_parser._to_import_statement(deep_dotted, "subsubmod"),
+            "from mod.submod import subsubmod",
+        )
+        self.assertEqual(
+            dependency_parser._to_import_statement(deep_dotted, "subsubmod_alias"),
+            "from mod.submod import subsubmod as subsubmod_alias",
+        )
+
+    def test_to_import_statement_with_dotted_qualname(self):
+        info = VersionInfo(module="mod", qualname="Scope.Target", version="1.2.3")
+
+        self.assertEqual(
+            dependency_parser._to_import_statement(info, "Target"),
+            "from mod.Scope import Target",
+        )
+        self.assertEqual(
+            dependency_parser._to_import_statement(info, "TargetAlias"),
+            "from mod.Scope import Target as TargetAlias",
+        )
+
+    def test_package_info_import_statement_property(self):
+        versioned = dependency_parser.PackageInfo(
+            localname="VersionInfo",
+            info=VersionInfo(
+                module="pyiron_snippets.versions",
+                qualname="VersionInfo",
+                version="1.2.3",
+            ),
+        )
+        unversioned = dependency_parser.PackageInfo(
+            localname="VersionInfo",
+            info=VersionInfo(
+                module="pyiron_snippets.versions", qualname="VersionInfo", version=None
+            ),
+        )
+
+        self.assertEqual(
+            versioned.import_statement,
+            "from pyiron_snippets.versions import VersionInfo\n",
+        )
+        self.assertEqual(unversioned.import_statement, "")
+
+
 class TestUndefinedVariableVisitor(unittest.TestCase):
     def test_undefined_variable_visitor(self):
         source_code = """

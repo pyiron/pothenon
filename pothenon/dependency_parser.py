@@ -13,11 +13,50 @@ from pyiron_snippets import versions
 from pothenon import object_scope
 
 
+def _to_import_statement(info: versions.VersionInfo, localname: str) -> str:
+    # module: A.B, qualname: C, localname: C -> "from A.B import C"
+    # module: A.B, qualname: C, localname: D -> "from A.B import C as D"
+    # module: A.B, qualname: None, localname: C -> "from A import B as C"
+    # module: A, qualname: B, localname: B -> "from A import B"
+    # module: A, qualname: B, localname: C -> "from A import B as C"
+    # module: A, qualname: None, localname: A -> "import A"
+    # module: A, qualname: None, localname: B -> "import A as B"
+    if info.qualname is None:
+        if "." in info.module:
+            pkg, mod = info.module.rsplit(".", 1)
+            if mod == localname:
+                return f"from {pkg} import {mod}"
+            return f"from {pkg} import {mod} as {localname}"
+
+        if info.module == localname:
+            return f"import {info.module}"
+        return f"import {info.module} as {localname}"
+
+    if "." in info.qualname:
+        qualname_parent, qualname_name = info.qualname.rsplit(".", 1)
+        from_module = f"{info.module}.{qualname_parent}"
+        if qualname_name == localname:
+            return f"from {from_module} import {qualname_name}"
+        return f"from {from_module} import {qualname_name} as {localname}"
+
+    if info.qualname == localname:
+        return f"from {info.module} import {info.qualname}"
+    return f"from {info.module} import {info.qualname} as {localname}"
+
+
 class PackageInfo(typing.NamedTuple):
     localname: str
     info: versions.VersionInfo
     source_code: str | None = None
     dependency: dict[str, PackageInfo] | None = None
+
+    @property
+    def import_statement(self) -> str:
+        return (
+            _to_import_statement(self.info, self.localname) + "\n"
+            if self.info.version is not None
+            else ""
+        )
 
 
 CallDependencies = dict[str, PackageInfo]
