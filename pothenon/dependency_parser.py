@@ -54,7 +54,7 @@ class PackageInfo(typing.NamedTuple):
     def import_statement(self) -> str:
         return (
             _to_import_statement(self.info, self.localname) + "\n"
-            if self.info.has_version
+            if self.info.version is not None
             else ""
         )
 
