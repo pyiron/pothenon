@@ -353,11 +353,12 @@ class TestResolveOrImport(unittest.TestCase):
                 dependency_parser.importlib,
                 "import_module",
                 side_effect=ImportError("cannot import"),
-            ) as import_module,self.assertRaisesRegex(
-            ValueError,
-            "Cannot resolve 'does_not_exist' in the current scope and failed to "
-            "import it as a top-level module or package.",
-        )
+            ) as import_module,
+            self.assertRaisesRegex(
+                ValueError,
+                "Cannot resolve 'does_not_exist' in the current scope and failed to "
+                "import it as a top-level module or package.",
+            ),
         ):
             dependency_parser._resolve_or_import("does_not_exist", scope)
 
