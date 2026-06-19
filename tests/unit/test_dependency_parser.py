@@ -121,8 +121,7 @@ class TestImportStatements(unittest.TestCase):
 
         self.assertEqual(
             package.export(),
-            "from pkg import helper\n\n"
-            "def root():\n    return helper()\n",
+            "from pkg import helper\n\n" "def root():\n    return helper()\n",
         )
 
     def test_package_info_str_matches_export(self):

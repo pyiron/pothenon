@@ -60,7 +60,9 @@ class PackageInfo(typing.NamedTuple):
 
     def export(self) -> str:
         text = "\n".join(
-            [pck.export() for pck in self.dependency.values()] if self.dependency else []
+            [pck.export() for pck in self.dependency.values()]
+            if self.dependency
+            else []
         )
         text += "\n\n" if text else ""
         i_s = self.import_statement
