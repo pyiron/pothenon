@@ -295,7 +295,9 @@ class TestFindUndefinedVariables(unittest.TestCase):
 
     def test_syntax_error_in_source_returns_empty_dict(self):
         """When ``ast.parse`` raises ``SyntaxError``, the result must be ``{}``."""
-        with patch("pothenon.annotation_literalizer.ast.parse", side_effect=SyntaxError):
+        with patch(
+            "pothenon.annotation_literalizer.ast.parse", side_effect=SyntaxError
+        ):
             result = dependency_parser.find_undefined_variables(test_function)
         self.assertEqual(result, {})
 

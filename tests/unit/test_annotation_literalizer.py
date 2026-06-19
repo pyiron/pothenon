@@ -1,5 +1,6 @@
 import ast
 import unittest
+from typing import Annotated
 
 from pothenon import annotation_literalizer
 
@@ -13,6 +14,31 @@ def _factory():
         return tuple(values)
 
     return inner
+
+
+class _FakeURI:
+    def __init__(self, value: str):
+        self.value = value
+
+    def __repr__(self) -> str:
+        return f"_FakeURI({self.value!r})"
+
+
+class _FakeNamespace:
+    def __init__(self, base: str):
+        self.base = base
+
+    def __getattr__(self, name: str) -> _FakeURI:
+        return _FakeURI(f"{self.base}{name}")
+
+
+EX = _FakeNamespace("http://www.example.org/")
+
+
+def _annotated_with_namespace_literal(
+    x: Annotated[float, {"uri": EX.something}],
+):
+    return x
 
 
 class TestAnnotationLiteralizer(unittest.TestCase):
@@ -36,6 +62,17 @@ class TestAnnotationLiteralizer(unittest.TestCase):
     def test_transform_keeps_function_body(self):
         transformed = annotation_literalizer.transform(_annotated_function)
         self.assertIn("return {str(v): v for v in values}", transformed)
+
+    def test_transform_evaluates_attribute_metadata_in_annotated(self):
+        transformed = annotation_literalizer.transform(
+            _annotated_with_namespace_literal
+        )
+        tree = ast.parse(transformed)
+        funcdef = tree.body[0]
+        annotation = ast.unparse(funcdef.args.args[0].annotation)
+
+        self.assertNotIn("EX.something", annotation)
+        self.assertIn("http://www.example.org/something", annotation)
 
 
 if __name__ == "__main__":

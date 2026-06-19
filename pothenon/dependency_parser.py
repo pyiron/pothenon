@@ -218,10 +218,7 @@ def find_undefined_variables(
         set(dir(builtins))
     )
     scope = object_scope.get_scope(func_or_var)
-    return {
-        item: _resolve_or_import(item, scope)
-        for item in undefined_vars
-    }
+    return {item: _resolve_or_import(item, scope) for item in undefined_vars}
 
 
 def get_call_dependencies(
