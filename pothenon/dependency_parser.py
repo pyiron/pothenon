@@ -11,8 +11,7 @@ from typing import Any
 
 from pyiron_snippets import versions
 
-from pothenon import object_scope
-from pothenon import annotation_literalizer
+from pothenon import annotation_literalizer, object_scope
 
 
 def _to_import_statement(info: versions.VersionInfo, localname: str) -> str:
