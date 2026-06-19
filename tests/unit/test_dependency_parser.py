@@ -302,6 +302,70 @@ class TestFindUndefinedVariables(unittest.TestCase):
         self.assertEqual(result, {})
 
 
+class TestResolveOrImport(unittest.TestCase):
+    def test_uses_scope_resolution_when_available(self):
+        scope = object()
+        resolved = object()
+
+        with (
+            patch.object(
+                dependency_parser.object_scope,
+                "resolve_attribute_to_object",
+                return_value=resolved,
+            ) as resolve_attribute_to_object,
+            patch.object(dependency_parser.importlib, "import_module") as import_module,
+        ):
+            result = dependency_parser._resolve_or_import("json", scope)
+
+        resolve_attribute_to_object.assert_called_once_with("json", scope)
+        import_module.assert_not_called()
+        self.assertIs(result, resolved)
+
+    def test_imports_top_level_module_when_scope_resolution_fails(self):
+        scope = object()
+
+        with (
+            patch.object(
+                dependency_parser.object_scope,
+                "resolve_attribute_to_object",
+                side_effect=ValueError("not in scope"),
+            ) as resolve_attribute_to_object,
+            patch.object(
+                dependency_parser.importlib, "import_module", return_value=json
+            ) as import_module,
+        ):
+            result = dependency_parser._resolve_or_import("json", scope)
+
+        resolve_attribute_to_object.assert_called_once_with("json", scope)
+        import_module.assert_called_once_with("json")
+        self.assertIs(result, json)
+
+    def test_raises_value_error_when_scope_and_import_both_fail(self):
+        scope = object()
+
+        with (
+            patch.object(
+                dependency_parser.object_scope,
+                "resolve_attribute_to_object",
+                side_effect=ValueError("not in scope"),
+            ) as resolve_attribute_to_object,
+            patch.object(
+                dependency_parser.importlib,
+                "import_module",
+                side_effect=ImportError("cannot import"),
+            ) as import_module,
+        ):
+            with self.assertRaisesRegex(
+                ValueError,
+                "Cannot resolve 'does_not_exist' in the current scope and failed to "
+                "import it as a top-level module or package.",
+            ):
+                dependency_parser._resolve_or_import("does_not_exist", scope)
+
+        resolve_attribute_to_object.assert_called_once_with("does_not_exist", scope)
+        import_module.assert_called_once_with("does_not_exist")
+
+
 # ---------------------------------------------------------------------------
 # Module-level helpers used by TestGetCallDependencies
 # ---------------------------------------------------------------------------
