@@ -295,7 +295,7 @@ class TestFindUndefinedVariables(unittest.TestCase):
 
     def test_syntax_error_in_source_returns_empty_dict(self):
         """When ``ast.parse`` raises ``SyntaxError``, the result must be ``{}``."""
-        with patch("pothenon.dependency_parser.ast.parse", side_effect=SyntaxError):
+        with patch("pothenon.annotation_literalizer.ast.parse", side_effect=SyntaxError):
             result = dependency_parser.find_undefined_variables(test_function)
         self.assertEqual(result, {})
 
@@ -471,15 +471,17 @@ class TestGetFullSource(unittest.TestCase):
                 info=VersionInfo(module="dep_mod", qualname="dep", version="0.1.0"),
             )
         }
-        expected_source = "def _func_no_external(x, y):\n    return x + y\n"
+        expected_source = "def _func_no_external(x, y):\n    return x + y"
 
         with (
             patch.object(
                 dependency_parser.versions.VersionInfo, "of", return_value=expected_info
             ) as version_of,
             patch.object(
-                dependency_parser.inspect, "getsource", return_value=expected_source
-            ) as getsource,
+                dependency_parser.annotation_literalizer,
+                "transform",
+                return_value=expected_source,
+            ) as transform,
             patch.object(
                 dependency_parser,
                 "get_call_dependencies",
@@ -489,7 +491,7 @@ class TestGetFullSource(unittest.TestCase):
             result = dependency_parser.get_full_source(_func_no_external)
 
         version_of.assert_called_once_with(_func_no_external)
-        getsource.assert_called_once_with(_func_no_external)
+        transform.assert_called_once_with(_func_no_external)
         get_call_dependencies.assert_called_once_with(_func_no_external)
         self.assertEqual(
             result,

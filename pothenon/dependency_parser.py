@@ -200,7 +200,7 @@ def find_undefined_variables(
             raw_source = annotation_literalizer.transform(func_or_var)
         else:
             raw_source = inspect.getsource(func_or_var)
-    except (OSError, TypeError):
+    except (OSError, TypeError, SyntaxError):
         # No reliable source available; treat as having no undefined variables.
         return {}
 

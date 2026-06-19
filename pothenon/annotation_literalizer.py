@@ -1,13 +1,14 @@
 import ast
 import inspect
+import textwrap
 from typing import get_type_hints
 
+
 def transform(func):
-    source = inspect.getsource(func)
+    source = textwrap.dedent(inspect.getsource(func))
     tree = ast.parse(source)
 
     funcdef = tree.body[0]
-    ns = func.__globals__
 
     hints = get_type_hints(func, include_extras=True)
 
