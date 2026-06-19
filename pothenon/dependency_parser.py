@@ -53,10 +53,23 @@ class PackageInfo(typing.NamedTuple):
     @property
     def import_statement(self) -> str:
         return (
-            _to_import_statement(self.info, self.localname) + "\n"
+            _to_import_statement(self.info, self.localname)
             if self.info.version is not None
             else ""
         )
+
+    def export(self) -> str:
+        text = "\n".join(
+            [pck.export() for pck in self.dependency.values()] if self.dependency else []
+        )
+        text += "\n\n" if text else ""
+        i_s = self.import_statement
+        text += i_s if i_s else ""
+        text += self.source_code if self.source_code else ""
+        return text
+
+    def __str__(self):
+        return self.export()
 
 
 CallDependencies = dict[str, PackageInfo]
@@ -216,3 +229,12 @@ def get_call_dependencies(
         else:
             call_dependencies[name] = PackageInfo(name, info)
     return call_dependencies
+
+
+def get_full_source(func_or_var: Callable[..., Any] | type[Any]) -> PackageInfo:
+    return PackageInfo(
+        localname=func_or_var.__name__,
+        info=versions.VersionInfo.of(func_or_var),
+        source_code=inspect.getsource(func_or_var),
+        dependency=get_call_dependencies(func_or_var),
+    )
