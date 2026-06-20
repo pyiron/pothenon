@@ -58,7 +58,7 @@ class PackageInfo(typing.NamedTuple):
             else ""
         )
 
-def export(self, _seen: set[int] | None = None) -> str:
+    def export(self, _seen: set[int] | None = None) -> str:
         seen = set() if _seen is None else _seen
         if id(self) in seen:
             return ""
