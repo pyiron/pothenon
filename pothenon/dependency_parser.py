@@ -242,9 +242,14 @@ def get_call_dependencies(
 
 
 def get_full_source(func_or_var: Callable[..., Any] | type[Any]) -> PackageInfo:
+    try:
+        source = inspect.getsource(func_or_var)
+    except (OSError, TypeError):
+        source = None
+
     return PackageInfo(
         localname=func_or_var.__name__,
         info=versions.VersionInfo.of(func_or_var),
-        source_code=inspect.getsource(func_or_var),
+        source_code=source,
         dependency=get_call_dependencies(func_or_var),
     )
