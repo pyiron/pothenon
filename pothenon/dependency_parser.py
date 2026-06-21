@@ -59,19 +59,27 @@ class PackageInfo(typing.NamedTuple):
             else ""
         )
 
-    def export(self) -> str:
-        text = "\n".join(
-            [pck.export() for pck in self.dependency.values()]
-            if self.dependency
-            else []
-        )
-        text += "\n\n" if text else ""
-        i_s = self.import_statement
-        text += i_s if i_s else ""
-        text += self.source_code if self.source_code else ""
-        return text
+    def export(self, _seen: set[int] | None = None) -> str:
+        seen = set() if _seen is None else _seen
+        if id(self) in seen:
+            return ""
+        seen.add(id(self))
 
-    def __str__(self):
+        chunks: list[str] = []
+        if self.dependency:
+            for name in sorted(self.dependency):
+                dep_text = self.dependency[name].export(seen)
+                if dep_text:
+                    chunks.append(dep_text)
+
+        if self.import_statement:
+            chunks.append(self.import_statement)
+        if self.source_code:
+            chunks.append(self.source_code)
+
+        return "\n\n".join(chunks)
+
+    def __str__(self) -> str:
         return self.export()
 
 
@@ -249,10 +257,18 @@ def get_call_dependencies(
     return call_dependencies
 
 
-def get_full_source(func: Callable[..., Any]) -> PackageInfo:
+def get_full_source(func_or_var: Callable[..., Any] | type[Any]) -> PackageInfo:
+    try:
+        if inspect.isfunction(func_or_var):
+            source = annotation_literalizer.transform(func_or_var)
+        else:
+            source = inspect.getsource(func_or_var)
+    except (OSError, TypeError):
+        source = None
+
     return PackageInfo(
-        localname=func.__name__,
-        info=versions.VersionInfo.of(func),
-        source_code=annotation_literalizer.transform(func),
-        dependency=get_call_dependencies(func),
+        localname=func_or_var.__name__,
+        info=versions.VersionInfo.of(func_or_var),
+        source_code=source,
+        dependency=get_call_dependencies(func_or_var),
     )
