@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 import builtins
+import importlib
 import inspect
 import textwrap
 import typing
@@ -10,7 +11,7 @@ from typing import Any
 
 from pyiron_snippets import versions
 
-from pothenon import object_scope
+from pothenon import annotation_literalizer, object_scope
 
 
 def _to_import_statement(info: versions.VersionInfo, localname: str) -> str:
@@ -174,6 +175,21 @@ class UndefinedVariableVisitor(ast.NodeVisitor):
         self.imports.append(node)
 
 
+def _resolve_or_import(name: str, scope: object_scope.Scope) -> object:
+    try:
+        return object_scope.resolve_attribute_to_object(name, scope)
+    except ValueError:
+        # If the name cannot be resolved in the current scope, attempt to
+        # import it as a top-level module or package.
+        try:
+            return importlib.import_module(name)
+        except ImportError as e:
+            raise ValueError(
+                f"Cannot resolve '{name}' in the current scope and failed to "
+                f"import it as a top-level module or package."
+            ) from e
+
+
 def find_undefined_variables(
     func_or_var: Callable[..., Any] | type[Any],
 ) -> dict[str, object]:
@@ -187,8 +203,11 @@ def find_undefined_variables(
     try:
         # Prefer actual source code over string representations for both
         # callables and other inspectable objects (e.g. classes, modules).
-        raw_source = inspect.getsource(func_or_var)
-    except (OSError, TypeError):
+        if inspect.isfunction(func_or_var):
+            raw_source = annotation_literalizer.transform(func_or_var)
+        else:
+            raw_source = inspect.getsource(func_or_var)
+    except (OSError, TypeError, SyntaxError):
         # No reliable source available; treat as having no undefined variables.
         return {}
 
@@ -206,10 +225,7 @@ def find_undefined_variables(
         set(dir(builtins))
     )
     scope = object_scope.get_scope(func_or_var)
-    return {
-        item: object_scope.resolve_attribute_to_object(item, scope)
-        for item in undefined_vars
-    }
+    return {item: _resolve_or_import(item, scope) for item in undefined_vars}
 
 
 def get_call_dependencies(
@@ -231,7 +247,7 @@ def get_call_dependencies(
                 call_dependencies[name] = PackageInfo(
                     name,
                     info,
-                    source_code=inspect.getsource(obj),
+                    source_code=annotation_literalizer.transform(obj),
                     dependency=get_call_dependencies(
                         obj, version_scraping, call_dependencies
                     ),
@@ -243,7 +259,10 @@ def get_call_dependencies(
 
 def get_full_source(func_or_var: Callable[..., Any] | type[Any]) -> PackageInfo:
     try:
-        source = inspect.getsource(func_or_var)
+        if inspect.isfunction(func_or_var):
+            source = annotation_literalizer.transform(func_or_var)
+        else:
+            source = inspect.getsource(func_or_var)
     except (OSError, TypeError):
         source = None
 

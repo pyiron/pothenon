@@ -295,9 +295,75 @@ class TestFindUndefinedVariables(unittest.TestCase):
 
     def test_syntax_error_in_source_returns_empty_dict(self):
         """When ``ast.parse`` raises ``SyntaxError``, the result must be ``{}``."""
-        with patch("pothenon.dependency_parser.ast.parse", side_effect=SyntaxError):
+        with patch(
+            "pothenon.annotation_literalizer.ast.parse", side_effect=SyntaxError
+        ):
             result = dependency_parser.find_undefined_variables(test_function)
         self.assertEqual(result, {})
+
+
+class TestResolveOrImport(unittest.TestCase):
+    def test_uses_scope_resolution_when_available(self):
+        scope = object()
+        resolved = object()
+
+        with (
+            patch.object(
+                dependency_parser.object_scope,
+                "resolve_attribute_to_object",
+                return_value=resolved,
+            ) as resolve_attribute_to_object,
+            patch.object(dependency_parser.importlib, "import_module") as import_module,
+        ):
+            result = dependency_parser._resolve_or_import("json", scope)
+
+        resolve_attribute_to_object.assert_called_once_with("json", scope)
+        import_module.assert_not_called()
+        self.assertIs(result, resolved)
+
+    def test_imports_top_level_module_when_scope_resolution_fails(self):
+        scope = object()
+
+        with (
+            patch.object(
+                dependency_parser.object_scope,
+                "resolve_attribute_to_object",
+                side_effect=ValueError("not in scope"),
+            ) as resolve_attribute_to_object,
+            patch.object(
+                dependency_parser.importlib, "import_module", return_value=json
+            ) as import_module,
+        ):
+            result = dependency_parser._resolve_or_import("json", scope)
+
+        resolve_attribute_to_object.assert_called_once_with("json", scope)
+        import_module.assert_called_once_with("json")
+        self.assertIs(result, json)
+
+    def test_raises_value_error_when_scope_and_import_both_fail(self):
+        scope = object()
+
+        with (
+            patch.object(
+                dependency_parser.object_scope,
+                "resolve_attribute_to_object",
+                side_effect=ValueError("not in scope"),
+            ) as resolve_attribute_to_object,
+            patch.object(
+                dependency_parser.importlib,
+                "import_module",
+                side_effect=ImportError("cannot import"),
+            ) as import_module,
+            self.assertRaisesRegex(
+                ValueError,
+                "Cannot resolve 'does_not_exist' in the current scope and failed to "
+                "import it as a top-level module or package.",
+            ),
+        ):
+            dependency_parser._resolve_or_import("does_not_exist", scope)
+
+        resolve_attribute_to_object.assert_called_once_with("does_not_exist", scope)
+        import_module.assert_called_once_with("does_not_exist")
 
 
 # ---------------------------------------------------------------------------
@@ -471,15 +537,17 @@ class TestGetFullSource(unittest.TestCase):
                 info=VersionInfo(module="dep_mod", qualname="dep", version="0.1.0"),
             )
         }
-        expected_source = "def _func_no_external(x, y):\n    return x + y\n"
+        expected_source = "def _func_no_external(x, y):\n    return x + y"
 
         with (
             patch.object(
                 dependency_parser.versions.VersionInfo, "of", return_value=expected_info
             ) as version_of,
             patch.object(
-                dependency_parser.inspect, "getsource", return_value=expected_source
-            ) as getsource,
+                dependency_parser.annotation_literalizer,
+                "transform",
+                return_value=expected_source,
+            ) as transform,
             patch.object(
                 dependency_parser,
                 "get_call_dependencies",
@@ -489,7 +557,7 @@ class TestGetFullSource(unittest.TestCase):
             result = dependency_parser.get_full_source(_func_no_external)
 
         version_of.assert_called_once_with(_func_no_external)
-        getsource.assert_called_once_with(_func_no_external)
+        transform.assert_called_once_with(_func_no_external)
         get_call_dependencies.assert_called_once_with(_func_no_external)
         self.assertEqual(
             result,
