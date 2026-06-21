@@ -103,9 +103,34 @@ class TestImportStatements(unittest.TestCase):
 
         self.assertEqual(
             versioned.import_statement,
-            "from pyiron_snippets.versions import VersionInfo\n",
+            "from pyiron_snippets.versions import VersionInfo",
         )
         self.assertEqual(unversioned.import_statement, "")
+
+    def test_package_info_export_includes_dependencies_and_source(self):
+        dependency = dependency_parser.PackageInfo(
+            localname="helper",
+            info=VersionInfo(module="pkg", qualname="helper", version="1.0.0"),
+        )
+        package = dependency_parser.PackageInfo(
+            localname="root",
+            info=VersionInfo(module="local", qualname="root", version=None),
+            source_code="def root():\n    return helper()\n",
+            dependency={"helper": dependency},
+        )
+
+        self.assertEqual(
+            package.export(),
+            "from pkg import helper\n\n" "def root():\n    return helper()\n",
+        )
+
+    def test_package_info_str_matches_export(self):
+        package = dependency_parser.PackageInfo(
+            localname="x",
+            info=VersionInfo(module="local", qualname="x", version=None),
+            source_code="x = 1\n",
+        )
+        self.assertEqual(str(package), package.export())
 
 
 class TestUndefinedVariableVisitor(unittest.TestCase):
@@ -435,6 +460,46 @@ class TestGetCallDependencies(unittest.TestCase):
         # Both should have the same fully qualified name (json)
         self.assertEqual(result["json"].info.module, "json")
         self.assertEqual(result["json_alias"].info.module, "json")
+
+
+class TestGetFullSource(unittest.TestCase):
+    def test_get_full_source_collects_source_and_dependencies(self):
+        expected_info = VersionInfo(module="module", qualname="func", version="1.2.3")
+        expected_dependencies = {
+            "dep": dependency_parser.PackageInfo(
+                localname="dep",
+                info=VersionInfo(module="dep_mod", qualname="dep", version="0.1.0"),
+            )
+        }
+        expected_source = "def _func_no_external(x, y):\n    return x + y\n"
+
+        with (
+            patch.object(
+                dependency_parser.versions.VersionInfo, "of", return_value=expected_info
+            ) as version_of,
+            patch.object(
+                dependency_parser.inspect, "getsource", return_value=expected_source
+            ) as getsource,
+            patch.object(
+                dependency_parser,
+                "get_call_dependencies",
+                return_value=expected_dependencies,
+            ) as get_call_dependencies,
+        ):
+            result = dependency_parser.get_full_source(_func_no_external)
+
+        version_of.assert_called_once_with(_func_no_external)
+        getsource.assert_called_once_with(_func_no_external)
+        get_call_dependencies.assert_called_once_with(_func_no_external)
+        self.assertEqual(
+            result,
+            dependency_parser.PackageInfo(
+                localname="_func_no_external",
+                info=expected_info,
+                source_code=expected_source,
+                dependency=expected_dependencies,
+            ),
+        )
 
 
 if __name__ == "__main__":
