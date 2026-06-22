@@ -1,5 +1,6 @@
 import ast
 import unittest
+from pathlib import Path
 from typing import Annotated
 
 from pothenon import annotation_literalizer
@@ -41,6 +42,10 @@ def _annotated_with_namespace_literal(
     return x
 
 
+def _type_hint_without_repr(x: Path):
+    return x
+
+
 class TestAnnotationLiteralizer(unittest.TestCase):
     def test_transform_literalizes_forward_reference_annotations(self):
         transformed = annotation_literalizer.transform(_annotated_function)
@@ -73,6 +78,13 @@ class TestAnnotationLiteralizer(unittest.TestCase):
 
         self.assertNotIn("EX.something", annotation)
         self.assertIn("http://www.example.org/something", annotation)
+
+    def test_type_hint_without_repr_is_represented_as_string(self):
+        transformed = annotation_literalizer.transform(_type_hint_without_repr)
+        tree = ast.parse(transformed)
+        funcdef = tree.body[0]
+        annotation = ast.unparse(funcdef.args.args[0].annotation)
+        self.assertEqual(annotation, "Path")
 
 
 if __name__ == "__main__":
