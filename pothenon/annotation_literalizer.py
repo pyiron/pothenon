@@ -16,11 +16,17 @@ def transform(func):
     for arg in funcdef.args.args:
         if arg.arg in hints:
             value = hints[arg.arg]
-            arg.annotation = ast.parse(repr(value)).body[0].value
+            try:
+                arg.annotation = ast.parse(repr(value)).body[0].value
+            except SyntaxError:
+                pass
 
     # ---- return type ----
     if "return" in hints and funcdef.returns is not None:
         ret_value = hints["return"]
-        funcdef.returns = ast.parse(repr(ret_value)).body[0].value
+        try:
+            funcdef.returns = ast.parse(repr(ret_value)).body[0].value
+        except SyntaxError:
+            pass
 
     return ast.unparse(tree)
