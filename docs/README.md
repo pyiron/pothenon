@@ -22,36 +22,48 @@ When a function calls another function that is defined in the same (local) scope
 reports that function together with its own dependencies:
 
 ```python
-def f(x):
-    return x
+import json
+from math import sqrt
 
-def g(x):
-    return f(x)
+def add_one(x):
+    return x + 1
 
-dependency_parser.get_call_dependencies(g)
+def get_sqrt(x):
+    return sqrt(x)
+
+def my_operation(x):
+    y = add_one(x)
+    z = get_sqrt(y)
+    return z
+
+def dump_operation(x):
+    y = my_operation(x)
+    return json.dumps(y)
+
+print(dependency_parser.get_full_source(dump_operation))
 ```
 
 ```
-{'__main__.f': PackageInfo(localname='f', info=VersionInfo(module='__main__', qualname='f', version=None))}
-```
+"""
+import json
 
-### Resolving dependencies on installed packages
+from math import sqrt
 
-When a function calls a symbol from an installed package, `pothenon` identifies the package
-and captures its version:
+def get_sqrt(x):
+    return sqrt(x)
 
-```python
-import math
+def add_one(x):
+    return x + 1
 
-def exp(x):
-    return math.exp(x)
+def my_operation(x):
+    y = add_one(x)
+    z = get_sqrt(y)
+    return z
 
-dependency_parser.get_call_dependencies(exp)
-```
-
-```
-{'math': PackageInfo(localname='math', info=VersionInfo(module='math', qualname=None, version='3.14.5'))}
-```
+def dump_operation(x):
+    y = my_operation(x)
+    return json.dumps(y)
+""" ```
 
 ## API
 
