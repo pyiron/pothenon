@@ -1,4 +1,5 @@
 import ast
+import contextlib
 import inspect
 import textwrap
 from typing import get_type_hints
@@ -16,11 +17,13 @@ def transform(func):
     for arg in funcdef.args.args:
         if arg.arg in hints:
             value = hints[arg.arg]
-            arg.annotation = ast.parse(repr(value)).body[0].value
+            with contextlib.suppress(SyntaxError):
+                arg.annotation = ast.parse(repr(value)).body[0].value
 
     # ---- return type ----
     if "return" in hints and funcdef.returns is not None:
         ret_value = hints["return"]
-        funcdef.returns = ast.parse(repr(ret_value)).body[0].value
+        with contextlib.suppress(SyntaxError):
+            funcdef.returns = ast.parse(repr(ret_value)).body[0].value
 
     return ast.unparse(tree)
