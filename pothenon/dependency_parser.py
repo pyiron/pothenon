@@ -252,6 +252,8 @@ def get_call_dependencies(
                         obj, version_scraping, call_dependencies
                     ),
                 )
+            else:
+                raise TypeError(f"{name!r} is not a class or callable without a version")
         else:
             call_dependencies[name] = PackageInfo(name, info)
     return call_dependencies
