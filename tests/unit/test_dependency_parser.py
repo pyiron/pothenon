@@ -416,6 +416,20 @@ def _func_with_duplicate_fqn_different_localnames():
     return json.dumps({}) + json_alias.dumps({})
 
 
+class SomeGlobalClass:
+    pass
+
+some_global_variables = SomeGlobalClass()
+some_global_variables.some_attr = 42
+
+def _func_with_forbidden_global_variable():
+    """Function that uses a global variable defined in the module.
+
+    This tests that global variables defined in the module are not allowed as dependencies.
+    """
+    return some_global_variables.some_attr + 1
+
+
 class TestGetCallDependencies(unittest.TestCase):
     def test_no_external_dependencies(self):
         """A function that only uses its own arguments returns an empty dict."""
@@ -526,6 +540,16 @@ class TestGetCallDependencies(unittest.TestCase):
         # Both should have the same fully qualified name (json)
         self.assertEqual(result["json"].info.module, "json")
         self.assertEqual(result["json_alias"].info.module, "json")
+
+    def test_forbidden_global_variable_raises(self):
+        """Using a global variable defined in the module should raise a ValueError."""
+        with self.assertRaises(ValueError) as context:
+            dependency_parser.get_call_dependencies(_func_with_forbidden_global_variable)
+
+        self.assertIn(
+            "'some_global_variables' is not a class or callable without a version",
+            str(context.exception),
+        )
 
 
 class TestGetFullSource(unittest.TestCase):
