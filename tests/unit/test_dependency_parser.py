@@ -423,11 +423,20 @@ some_global_class = SomeGlobalClass()
 some_global_class.some_attr = 42
 
 def _func_with_forbidden_global_class():
+    """Function that uses a global class defined in the module.
+
+    This tests that global classes defined in the module are not allowed as dependencies.
+    """
+    return some_global_class.some_attr + 1
+
+some_global_variable = 42
+
+def _func_with_forbidden_global_variable():
     """Function that uses a global variable defined in the module.
 
     This tests that global variables defined in the module are not allowed as dependencies.
     """
-    return some_global_class.some_attr + 1
+    return some_global_variable + 1
 
 
 class TestGetCallDependencies(unittest.TestCase):
@@ -518,13 +527,23 @@ class TestGetCallDependencies(unittest.TestCase):
         self.assertEqual(result["json"].info.module, "json")
         self.assertEqual(result["json_alias"].info.module, "json")
 
-    def test_forbidden_global_variable_raises(self):
-        """Using a global variable defined in the module should raise a ValueError."""
+    def test_forbidden_global_class_raises_error(self):
+        """Using a global class defined in the module should raise a ValueError."""
         with self.assertRaises(ValueError) as context:
             dependency_parser.get_call_dependencies(_func_with_forbidden_global_class)
 
         self.assertIn(
             "'some_global_class' is not a class or callable without a version",
+            str(context.exception),
+        )
+
+    def test_forbidden_global_variable_raises_error(self):
+        """Using a global variable defined in the module should raise a ValueError."""
+        with self.assertRaises(ValueError) as context:
+            dependency_parser.get_call_dependencies(_func_with_forbidden_global_variable)
+
+        self.assertIn(
+            "'some_global_variable' is not a callable or module with a version",
             str(context.exception),
         )
 
