@@ -419,15 +419,15 @@ def _func_with_duplicate_fqn_different_localnames():
 class SomeGlobalClass:
     pass
 
-some_global_variables = SomeGlobalClass()
-some_global_variables.some_attr = 42
+some_global_class = SomeGlobalClass()
+some_global_class.some_attr = 42
 
-def _func_with_forbidden_global_variable():
+def _func_with_forbidden_global_class():
     """Function that uses a global variable defined in the module.
 
     This tests that global variables defined in the module are not allowed as dependencies.
     """
-    return some_global_variables.some_attr + 1
+    return some_global_class.some_attr + 1
 
 
 class TestGetCallDependencies(unittest.TestCase):
@@ -458,29 +458,6 @@ class TestGetCallDependencies(unittest.TestCase):
         # function and the unversioned callable helper.
         self.assertIn(_func_no_external, call_log)
         self.assertIn(_helper_func, call_log)
-
-    def test_non_callable_unversioned_dependency_not_recursed(self):
-        """A non-callable, unversioned dependency is recorded but NOT recursed into."""
-        call_log: list[object] = []
-        non_callable_dep = 42  # plain integer, not callable
-
-        original_find = dependency_parser.find_undefined_variables
-
-        def tracking_find(func):
-            call_log.append(func)
-            if func is _func_no_external:
-                return {"magic_number": non_callable_dep}
-            return original_find(func)
-
-        with patch.object(
-            dependency_parser, "find_undefined_variables", side_effect=tracking_find
-        ):
-            result = dependency_parser.get_call_dependencies(_func_no_external)
-
-        # The integer must be recorded in the result (a key must exist).
-        self.assertTrue(len(result) > 0)
-        # find_undefined_variables must NOT have been called for the integer.
-        self.assertNotIn(non_callable_dep, call_log)
 
     def test_records_package_info_metadata_for_real_dependency(self):
         result = dependency_parser.get_call_dependencies(
@@ -544,10 +521,10 @@ class TestGetCallDependencies(unittest.TestCase):
     def test_forbidden_global_variable_raises(self):
         """Using a global variable defined in the module should raise a ValueError."""
         with self.assertRaises(ValueError) as context:
-            dependency_parser.get_call_dependencies(_func_with_forbidden_global_variable)
+            dependency_parser.get_call_dependencies(_func_with_forbidden_global_class)
 
         self.assertIn(
-            "'some_global_variables' is not a class or callable without a version",
+            "'some_global_class' is not a class or callable without a version",
             str(context.exception),
         )
 

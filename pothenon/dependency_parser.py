@@ -5,6 +5,7 @@ import builtins
 import importlib
 import inspect
 import textwrap
+import types
 import typing
 from collections.abc import Callable
 from typing import Any
