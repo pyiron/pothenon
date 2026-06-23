@@ -417,18 +417,18 @@ def _func_with_duplicate_fqn_different_localnames():
     return json.dumps({}) + json_alias.dumps({})
 
 
-class SomeGlobalClass:
+class _SomeGlobalClass:
     pass
 
 
-some_global_class = SomeGlobalClass()
+some_global_class = _SomeGlobalClass()
 some_global_class.some_attr = 42
 
 
 def _func_with_forbidden_global_class():
-    """Function that uses a global class defined in the module.
+    """Function that uses a module-level (global) instance defined in this module.
 
-    This tests that global classes defined in the module are not allowed as dependencies.
+    This tests that module-level objects defined in the module are not allowed as dependencies.
     """
     return some_global_class.some_attr + 1
 
@@ -533,7 +533,7 @@ class TestGetCallDependencies(unittest.TestCase):
         self.assertEqual(result["json_alias"].info.module, "json")
 
     def test_forbidden_global_class_raises_error(self):
-        """Using a global class defined in the module should raise a ValueError."""
+        """Using a module-level (global) instance defined in this module should raise a ValueError."""
         with self.assertRaises(ValueError) as context:
             dependency_parser.get_call_dependencies(_func_with_forbidden_global_class)
 
