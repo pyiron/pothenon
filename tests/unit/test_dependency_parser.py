@@ -399,7 +399,8 @@ def _func_with_unversioned_class():
 
 def _func_using_json():
     """Helper function that uses json from stdlib."""
-    return json.dumps({"key": "value"})
+    key_value = {"key": "value"}
+    return json.dumps(key_value)
 
 
 def _func_calling_helper_with_external_dep():
