@@ -254,7 +254,9 @@ def get_call_dependencies(
                     ),
                 )
             else:
-                raise ValueError(f"{name!r} is not a class or callable without a version")
+                raise ValueError(
+                    f"{name!r} is not a class or callable without a version"
+                )
         else:
             if not callable(obj) and not isinstance(obj, types.ModuleType):
                 raise ValueError(f"{name!r} is not a callable or module with a version")

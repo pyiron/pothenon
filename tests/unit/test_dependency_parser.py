@@ -420,8 +420,10 @@ def _func_with_duplicate_fqn_different_localnames():
 class SomeGlobalClass:
     pass
 
+
 some_global_class = SomeGlobalClass()
 some_global_class.some_attr = 42
+
 
 def _func_with_forbidden_global_class():
     """Function that uses a global class defined in the module.
@@ -430,7 +432,9 @@ def _func_with_forbidden_global_class():
     """
     return some_global_class.some_attr + 1
 
+
 some_global_variable = 42
+
 
 def _func_with_forbidden_global_variable():
     """Function that uses a global variable defined in the module.
@@ -541,7 +545,9 @@ class TestGetCallDependencies(unittest.TestCase):
     def test_forbidden_global_variable_raises_error(self):
         """Using a global variable defined in the module should raise a ValueError."""
         with self.assertRaises(ValueError) as context:
-            dependency_parser.get_call_dependencies(_func_with_forbidden_global_variable)
+            dependency_parser.get_call_dependencies(
+                _func_with_forbidden_global_variable
+            )
 
         self.assertIn(
             "'some_global_variable' is not a callable or module with a version",
