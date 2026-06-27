@@ -63,7 +63,8 @@ def my_operation(x):
 def dump_operation(x):
     y = my_operation(x)
     return json.dumps(y)
-""" ```
+"""
+```
 
 ## API
 
