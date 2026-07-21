@@ -1,7 +1,7 @@
 # pothenon
 
-`pothenon` is a dependency parser for Python functions. Given a callable, it inspects the
-function's source code and resolves each external symbol it references to its originating
+`pothenon` is a dependency parser for Python functions and classes. Given a callable or class, it inspects the
+object's source code and resolves each external symbol it references to its originating
 Python package, including the package's version where available.
 
 ## Installation

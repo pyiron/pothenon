@@ -389,7 +389,8 @@ def _func_with_versioned_dependency():
 class _UnversionedClass:
     """A locally-defined class that has no package version."""
 
-    pass
+    def dumps(self, value):
+        return json.dumps(value)
 
 
 def _func_with_unversioned_class():
@@ -490,10 +491,15 @@ class TestGetCallDependencies(unittest.TestCase):
         )
         self.assertIn("VersionInfo", result)
 
-    def test_unversioned_class_dependency_raises_type_error(self):
-        """A class dependency without a version must raise TypeError."""
-        with self.assertRaises(TypeError):
-            dependency_parser.get_call_dependencies(_func_with_unversioned_class)
+    def test_unversioned_class_dependency_is_recursed(self):
+        """A class dependency without a version is captured with its own dependencies."""
+        result = dependency_parser.get_call_dependencies(_func_with_unversioned_class)
+        self.assertIn("_UnversionedClass", result)
+        self.assertIn("json", result["_UnversionedClass"].dependency or {})
+        self.assertIn(
+            "class _UnversionedClass",
+            result["_UnversionedClass"].source_code or "",
+        )
 
     def test_recursive_dependency_detection(self):
         """When f calls g and g uses an external package, get_call_dependencies(f) should detect the package.
@@ -595,6 +601,11 @@ class TestGetFullSource(unittest.TestCase):
                 dependency=expected_dependencies,
             ),
         )
+
+    def test_get_full_source_collects_class_source_and_dependencies(self):
+        result = dependency_parser.get_full_source(_UnversionedClass)
+        self.assertIn("class _UnversionedClass", result.source_code or "")
+        self.assertIn("json", result.dependency or {})
 
 
 if __name__ == "__main__":

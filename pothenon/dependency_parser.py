@@ -87,6 +87,12 @@ class PackageInfo(typing.NamedTuple):
 CallDependencies = dict[str, PackageInfo]
 
 
+def _get_source_code(func_or_var: Callable[..., Any] | type[Any]) -> str:
+    if inspect.isfunction(func_or_var):
+        return annotation_literalizer.transform(func_or_var)
+    return inspect.getsource(func_or_var)
+
+
 def split_by_version_availability(
     call_dependencies: CallDependencies,
 ) -> tuple[CallDependencies, CallDependencies]:
@@ -204,10 +210,7 @@ def find_undefined_variables(
     try:
         # Prefer actual source code over string representations for both
         # callables and other inspectable objects (e.g. classes, modules).
-        if inspect.isfunction(func_or_var):
-            raw_source = annotation_literalizer.transform(func_or_var)
-        else:
-            raw_source = inspect.getsource(func_or_var)
+        raw_source = _get_source_code(func_or_var)
     except (OSError, TypeError, SyntaxError):
         # No reliable source available; treat as having no undefined variables.
         return {}
@@ -242,13 +245,11 @@ def get_call_dependencies(
         info = versions.VersionInfo.of(obj, version_scraping=version_scraping)
 
         if info.version is None:
-            if inspect.isclass(obj):
-                raise TypeError(f"{name!r} is a class without a version")
             if callable(obj):
                 call_dependencies[name] = PackageInfo(
                     name,
                     info,
-                    source_code=annotation_literalizer.transform(obj),
+                    source_code=_get_source_code(obj),
                     dependency=get_call_dependencies(
                         obj, version_scraping, call_dependencies
                     ),
@@ -266,10 +267,7 @@ def get_call_dependencies(
 
 def get_full_source(func_or_var: Callable[..., Any] | type[Any]) -> PackageInfo:
     try:
-        if inspect.isfunction(func_or_var):
-            source = annotation_literalizer.transform(func_or_var)
-        else:
-            source = inspect.getsource(func_or_var)
+        source = _get_source_code(func_or_var)
     except (OSError, TypeError):
         source = None
 
