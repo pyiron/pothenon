@@ -250,6 +250,48 @@ class TestUndefinedVariableVisitor(unittest.TestCase):
         self.assertIn("async_func", visitor.defined_vars)
         self.assertIn("x", visitor.defined_vars)
 
+    def test_except_handler_target_added_to_defined_vars(self):
+        """Variables bound in ``except ... as <name>:`` are tracked as defined."""
+        source_code = """
+        def func():
+            try:
+                pass
+            except Exception as e:
+                print(e)
+        """
+        tree = ast.parse(textwrap.dedent(source_code))
+        visitor = dependency_parser.UndefinedVariableVisitor()
+        visitor.visit(tree)
+        self.assertIn("e", visitor.defined_vars)
+
+    def test_except_handler_without_target_does_not_raise(self):
+        """An ``except`` clause without an ``as`` target must be handled gracefully."""
+        source_code = """
+        def func():
+            try:
+                pass
+            except Exception:
+                pass
+        """
+        tree = ast.parse(textwrap.dedent(source_code))
+        visitor = dependency_parser.UndefinedVariableVisitor()
+        visitor.visit(tree)  # must not raise
+
+    def test_except_handler_body_is_visited(self):
+        """Variables used inside an ``except`` block body are collected in ``used_vars``."""
+        source_code = """
+        def func():
+            try:
+                pass
+            except Exception as exc:
+                log(exc)
+        """
+        tree = ast.parse(textwrap.dedent(source_code))
+        visitor = dependency_parser.UndefinedVariableVisitor()
+        visitor.visit(tree)
+        self.assertIn("log", visitor.used_vars)
+        self.assertIn("exc", visitor.defined_vars)
+
 
 x = 1
 
@@ -292,6 +334,18 @@ class TestFindUndefinedVariables(unittest.TestCase):
         undefined = dependency_parser.find_undefined_variables(parametrised)
         for name in ("a", "b", "args", "kw", "kwargs"):
             self.assertNotIn(name, undefined)
+
+    def test_predefined_variables_included_in_find_undefined_variables(self):
+        """``find_undefined_variables`` reports predefined Python variables like
+        ``__file__`` as undefined because they are not in ``builtins``; the
+        filtering happens at the ``get_call_dependencies`` level."""
+
+        def use_file():
+            return __file__
+
+        undefined = dependency_parser.find_undefined_variables(use_file)
+        # __file__ is not in builtins, so find_undefined_variables includes it
+        self.assertIn("__file__", undefined)
 
     def test_syntax_error_in_source_returns_empty_dict(self):
         """When ``ast.parse`` raises ``SyntaxError``, the result must be ``{}``."""
@@ -445,7 +499,24 @@ def _func_with_forbidden_global_variable():
     return some_global_variable + 1
 
 
+def _func_using_predefined_variables():
+    """Function that uses built-in Python predefined variables.
+
+    These should not be reported as undefined or trigger dependency resolution.
+    """
+    return __file__, __name__
+
+
 class TestGetCallDependencies(unittest.TestCase):
+    def test_predefined_variables_are_skipped_in_get_call_dependencies(self):
+        """Predefined variables like ``__file__`` must be silently ignored."""
+        result = dependency_parser.get_call_dependencies(
+            _func_using_predefined_variables
+        )
+        for name in dependency_parser.predefined_variables:
+            self.assertNotIn(name, result)
+        self.assertEqual(result, {})
+
     def test_no_external_dependencies(self):
         """A function that only uses its own arguments returns an empty dict."""
         result = dependency_parser.get_call_dependencies(_func_no_external)

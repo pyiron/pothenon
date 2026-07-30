@@ -14,6 +14,17 @@ from pyiron_snippets import versions
 
 from pothenon import annotation_literalizer, object_scope
 
+predefined_variables: frozenset[str] = frozenset(
+    {
+        "__file__",
+        "__name__",
+        "__package__",
+        "__doc__",
+        "__loader__",
+        "__spec__",
+    }
+)
+
 
 def _to_import_statement(info: versions.VersionInfo, localname: str) -> str:
     # module: A.B, qualname: C, localname: C -> "from A.B import C"
@@ -181,6 +192,11 @@ class UndefinedVariableVisitor(ast.NodeVisitor):
     def visit_Import(self, node: ast.Import) -> None:
         self.imports.append(node)
 
+    def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
+        if node.name:
+            self.defined_vars.add(node.name)
+        self.generic_visit(node)
+
 
 def _resolve_or_import(name: str, scope: object_scope.Scope) -> object:
     try:
@@ -242,6 +258,8 @@ def get_call_dependencies(
 
     # Find variables that are used but not defined
     for name, obj in find_undefined_variables(func_or_var).items():
+        if name in predefined_variables:
+            continue
         info = versions.VersionInfo.of(obj, version_scraping=version_scraping)
 
         if info.version is None:
