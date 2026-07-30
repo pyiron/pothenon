@@ -78,6 +78,11 @@ class TestGetGitInfo(unittest.TestCase):
         self.assertEqual(info["dirty"], True)
         self.assertEqual(info["short_commit"], "1234567")
 
+    def test_invalid_git_repository(self):
+        with self.assertsRaises(git_parser.InvalidGitRepositoryError) as context:
+            _ = git_parser.get_git_info(Path)
+            self.assertIn("No git repository found", str(context.exception))
+
 
 if __name__ == "__main__":
     unittest.main()
