@@ -1,6 +1,6 @@
+import unittest
 from pathlib import Path
 from types import SimpleNamespace
-import unittest
 from unittest.mock import Mock, patch
 
 from pothenon import git_parser
