@@ -186,6 +186,11 @@ class UndefinedVariableVisitor(ast.NodeVisitor):
     def visit_Import(self, node: ast.Import) -> None:
         self.imports.append(node)
 
+    def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
+        if node.name:
+            self.defined_vars.add(node.name)
+        self.generic_visit(node)
+
 
 def _resolve_or_import(name: str, scope: object_scope.Scope) -> object:
     try:
@@ -247,6 +252,8 @@ def get_call_dependencies(
 
     # Find variables that are used but not defined
     for name, obj in find_undefined_variables(func_or_var).items():
+        if name in predefined_variables:
+            continue
         info = versions.VersionInfo.of(obj, version_scraping=version_scraping)
 
         if info.version is None:
@@ -259,7 +266,7 @@ def get_call_dependencies(
                         obj, version_scraping, call_dependencies
                     ),
                 )
-            elif not name in predefined_variables:
+            else:
                 raise ValueError(
                     f"{name!r} is not a class or callable without a version"
                 )
