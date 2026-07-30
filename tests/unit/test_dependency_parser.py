@@ -516,6 +516,7 @@ class TestGetCallDependencies(unittest.TestCase):
         for name in dependency_parser.predefined_variables:
             self.assertNotIn(name, result)
         self.assertEqual(result, {})
+
     def test_no_external_dependencies(self):
         """A function that only uses its own arguments returns an empty dict."""
         result = dependency_parser.get_call_dependencies(_func_no_external)
