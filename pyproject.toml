@@ -22,6 +22,7 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
+    "GitPython==3.1.57",
     "pyiron_snippets==1.2.1",
 ]
 dynamic = [ "version",]
