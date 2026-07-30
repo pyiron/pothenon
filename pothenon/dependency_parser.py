@@ -14,7 +14,6 @@ from pyiron_snippets import versions
 
 from pothenon import annotation_literalizer, object_scope
 
-
 predefined_variables = [
     "__file__",
     "__name__",
