@@ -15,6 +15,11 @@ from pyiron_snippets import versions
 from pothenon import annotation_literalizer, object_scope
 
 
+predefined_variables = [
+    "__file__", "__name__", "__package__", "__doc__", "__loader__", "__spec__"
+]
+
+
 def _to_import_statement(info: versions.VersionInfo, localname: str) -> str:
     # module: A.B, qualname: C, localname: C -> "from A.B import C"
     # module: A.B, qualname: C, localname: D -> "from A.B import C as D"
@@ -254,7 +259,7 @@ def get_call_dependencies(
                         obj, version_scraping, call_dependencies
                     ),
                 )
-            else:
+            elif not name in predefined_variables:
                 raise ValueError(
                     f"{name!r} is not a class or callable without a version"
                 )
