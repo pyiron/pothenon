@@ -23,11 +23,16 @@ def get_git_info(func: Callable) -> dict:
             - dirty: Boolean indicating if there are uncommitted changes.
     """
     # File where the function is defined
-    source_file = Path(inspect.getsourcefile(func)).resolve()
+    source_path = inspect.getsourcefile(func)
+    if source_path is None:
+        raise ValueError(f"Cannot determine source file for {func!r}.")
+    source_file = Path(source_path).resolve()
 
     # Find the enclosing git repository
-    repo = git.Repo(source_file, search_parent_directories=True)
-
+    try:
+        repo = git.Repo(source_file, search_parent_directories=True)
+    except (git.exc.InvalidGitRepositoryError, git.exc.NoSuchPathError) as e:
+        raise ValueError(f"No git repository found for {source_file}.") from e
     # Remote URL (if any)
     try:
         remote_url = repo.remotes.origin.url
