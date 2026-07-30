@@ -14,14 +14,16 @@ from pyiron_snippets import versions
 
 from pothenon import annotation_literalizer, object_scope
 
-predefined_variables = [
-    "__file__",
-    "__name__",
-    "__package__",
-    "__doc__",
-    "__loader__",
-    "__spec__",
-]
+predefined_variables: frozenset[str] = frozenset(
+    {
+        "__file__",
+        "__name__",
+        "__package__",
+        "__doc__",
+        "__loader__",
+        "__spec__",
+    }
+)
 
 
 def _to_import_statement(info: versions.VersionInfo, localname: str) -> str:
