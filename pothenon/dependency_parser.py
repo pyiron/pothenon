@@ -16,7 +16,12 @@ from pothenon import annotation_literalizer, object_scope
 
 
 predefined_variables = [
-    "__file__", "__name__", "__package__", "__doc__", "__loader__", "__spec__"
+    "__file__",
+    "__name__",
+    "__package__",
+    "__doc__",
+    "__loader__",
+    "__spec__",
 ]
 
 
