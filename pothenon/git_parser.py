@@ -46,5 +46,5 @@ def get_git_info(func: Callable) -> dict:
         "commit": repo.head.commit.hexsha,
         "short_commit": repo.head.commit.hexsha[:7],
         "branch": None if repo.head.is_detached else repo.active_branch.name,
-        "dirty": repo.is_dirty(),
+        "dirty": repo.is_dirty(untracked_files=True),
     }
