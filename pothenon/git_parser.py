@@ -40,7 +40,7 @@ def get_git_info(func: Callable) -> dict:
         remote_url = None
 
     return {
-        "file": str(source_file),
+        "file": str(source_file.relative_to(repo.working_tree_dir)),
         "repo_root": str(repo.working_tree_dir),
         "remote_url": remote_url,
         "commit": repo.head.commit.hexsha,
