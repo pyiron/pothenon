@@ -250,6 +250,48 @@ class TestUndefinedVariableVisitor(unittest.TestCase):
         self.assertIn("async_func", visitor.defined_vars)
         self.assertIn("x", visitor.defined_vars)
 
+    def test_except_handler_target_added_to_defined_vars(self):
+        """Variables bound in ``except ... as <name>:`` are tracked as defined."""
+        source_code = """
+        def func():
+            try:
+                pass
+            except Exception as e:
+                print(e)
+        """
+        tree = ast.parse(textwrap.dedent(source_code))
+        visitor = dependency_parser.UndefinedVariableVisitor()
+        visitor.visit(tree)
+        self.assertIn("e", visitor.defined_vars)
+
+    def test_except_handler_without_target_does_not_raise(self):
+        """An ``except`` clause without an ``as`` target must be handled gracefully."""
+        source_code = """
+        def func():
+            try:
+                pass
+            except Exception:
+                pass
+        """
+        tree = ast.parse(textwrap.dedent(source_code))
+        visitor = dependency_parser.UndefinedVariableVisitor()
+        visitor.visit(tree)  # must not raise
+
+    def test_except_handler_body_is_visited(self):
+        """Variables used inside an ``except`` block body are collected in ``used_vars``."""
+        source_code = """
+        def func():
+            try:
+                pass
+            except Exception as exc:
+                log(exc)
+        """
+        tree = ast.parse(textwrap.dedent(source_code))
+        visitor = dependency_parser.UndefinedVariableVisitor()
+        visitor.visit(tree)
+        self.assertIn("log", visitor.used_vars)
+        self.assertIn("exc", visitor.defined_vars)
+
 
 x = 1
 
@@ -292,6 +334,18 @@ class TestFindUndefinedVariables(unittest.TestCase):
         undefined = dependency_parser.find_undefined_variables(parametrised)
         for name in ("a", "b", "args", "kw", "kwargs"):
             self.assertNotIn(name, undefined)
+
+    def test_predefined_variables_included_in_find_undefined_variables(self):
+        """``find_undefined_variables`` reports predefined Python variables like
+        ``__file__`` as undefined because they are not in ``builtins``; the
+        filtering happens at the ``get_call_dependencies`` level."""
+
+        def use_file():
+            return __file__
+
+        undefined = dependency_parser.find_undefined_variables(use_file)
+        # __file__ is not in builtins, so find_undefined_variables includes it
+        self.assertIn("__file__", undefined)
 
     def test_syntax_error_in_source_returns_empty_dict(self):
         """When ``ast.parse`` raises ``SyntaxError``, the result must be ``{}``."""
@@ -389,7 +443,8 @@ def _func_with_versioned_dependency():
 class _UnversionedClass:
     """A locally-defined class that has no package version."""
 
-    pass
+    def dumps(self, value):
+        return json.dumps(value)
 
 
 def _func_with_unversioned_class():
@@ -399,7 +454,8 @@ def _func_with_unversioned_class():
 
 def _func_using_json():
     """Helper function that uses json from stdlib."""
-    return json.dumps({"key": "value"})
+    key_value = {"key": "value"}
+    return json.dumps(key_value)
 
 
 def _func_calling_helper_with_external_dep():
@@ -416,7 +472,51 @@ def _func_with_duplicate_fqn_different_localnames():
     return json.dumps({}) + json_alias.dumps({})
 
 
+class _SomeGlobalClass:
+    pass
+
+
+some_global_class = _SomeGlobalClass()
+some_global_class.some_attr = 42
+
+
+def _func_with_forbidden_global_class():
+    """Function that uses a module-level (global) instance defined in this module.
+
+    This tests that module-level objects defined in the module are not allowed as dependencies.
+    """
+    return some_global_class.some_attr + 1
+
+
+some_global_variable = 42
+
+
+def _func_with_forbidden_global_variable():
+    """Function that uses a global variable defined in the module.
+
+    This tests that global variables defined in the module are not allowed as dependencies.
+    """
+    return some_global_variable + 1
+
+
+def _func_using_predefined_variables():
+    """Function that uses built-in Python predefined variables.
+
+    These should not be reported as undefined or trigger dependency resolution.
+    """
+    return __file__, __name__
+
+
 class TestGetCallDependencies(unittest.TestCase):
+    def test_predefined_variables_are_skipped_in_get_call_dependencies(self):
+        """Predefined variables like ``__file__`` must be silently ignored."""
+        result = dependency_parser.get_call_dependencies(
+            _func_using_predefined_variables
+        )
+        for name in dependency_parser.predefined_variables:
+            self.assertNotIn(name, result)
+        self.assertEqual(result, {})
+
     def test_no_external_dependencies(self):
         """A function that only uses its own arguments returns an empty dict."""
         result = dependency_parser.get_call_dependencies(_func_no_external)
@@ -445,29 +545,6 @@ class TestGetCallDependencies(unittest.TestCase):
         self.assertIn(_func_no_external, call_log)
         self.assertIn(_helper_func, call_log)
 
-    def test_non_callable_unversioned_dependency_not_recursed(self):
-        """A non-callable, unversioned dependency is recorded but NOT recursed into."""
-        call_log: list[object] = []
-        non_callable_dep = 42  # plain integer, not callable
-
-        original_find = dependency_parser.find_undefined_variables
-
-        def tracking_find(func):
-            call_log.append(func)
-            if func is _func_no_external:
-                return {"magic_number": non_callable_dep}
-            return original_find(func)
-
-        with patch.object(
-            dependency_parser, "find_undefined_variables", side_effect=tracking_find
-        ):
-            result = dependency_parser.get_call_dependencies(_func_no_external)
-
-        # The integer must be recorded in the result (a key must exist).
-        self.assertTrue(len(result) > 0)
-        # find_undefined_variables must NOT have been called for the integer.
-        self.assertNotIn(non_callable_dep, call_log)
-
     def test_records_package_info_metadata_for_real_dependency(self):
         result = dependency_parser.get_call_dependencies(
             _func_with_versioned_dependency
@@ -485,10 +562,15 @@ class TestGetCallDependencies(unittest.TestCase):
         )
         self.assertIn("VersionInfo", result)
 
-    def test_unversioned_class_dependency_raises_type_error(self):
-        """A class dependency without a version must raise TypeError."""
-        with self.assertRaises(TypeError):
-            dependency_parser.get_call_dependencies(_func_with_unversioned_class)
+    def test_unversioned_class_dependency_is_recursed(self):
+        """A class dependency without a version is captured with its own dependencies."""
+        result = dependency_parser.get_call_dependencies(_func_with_unversioned_class)
+        self.assertIn("_UnversionedClass", result)
+        self.assertIn("json", result["_UnversionedClass"].dependency or {})
+        self.assertIn(
+            "class _UnversionedClass",
+            result["_UnversionedClass"].source_code or "",
+        )
 
     def test_recursive_dependency_detection(self):
         """When f calls g and g uses an external package, get_call_dependencies(f) should detect the package.
@@ -526,6 +608,28 @@ class TestGetCallDependencies(unittest.TestCase):
         # Both should have the same fully qualified name (json)
         self.assertEqual(result["json"].info.module, "json")
         self.assertEqual(result["json_alias"].info.module, "json")
+
+    def test_forbidden_global_class_raises_error(self):
+        """Using a module-level (global) instance defined in this module should raise a ValueError."""
+        with self.assertRaises(ValueError) as context:
+            dependency_parser.get_call_dependencies(_func_with_forbidden_global_class)
+
+        self.assertIn(
+            "'some_global_class' is not a class or callable without a version",
+            str(context.exception),
+        )
+
+    def test_forbidden_global_variable_raises_error(self):
+        """Using a global variable defined in the module should raise a ValueError."""
+        with self.assertRaises(ValueError) as context:
+            dependency_parser.get_call_dependencies(
+                _func_with_forbidden_global_variable
+            )
+
+        self.assertIn(
+            "'some_global_variable' is not a callable or module with a version",
+            str(context.exception),
+        )
 
 
 class TestGetFullSource(unittest.TestCase):
@@ -568,6 +672,11 @@ class TestGetFullSource(unittest.TestCase):
                 dependency=expected_dependencies,
             ),
         )
+
+    def test_get_full_source_collects_class_source_and_dependencies(self):
+        result = dependency_parser.get_full_source(_UnversionedClass)
+        self.assertIn("class _UnversionedClass", result.source_code or "")
+        self.assertIn("json", result.dependency or {})
 
 
 if __name__ == "__main__":
