@@ -15,8 +15,9 @@ class _MissingOrigin:
 class TestGetGitInfo(unittest.TestCase):
     def test_get_git_info_returns_metadata(self):
         source_file = "/tmp/repo/tests/unit/test_git_parser.py"
+        repo_root = str(Path(source_file).resolve().parents[2])
         repo = SimpleNamespace(
-            working_tree_dir="/tmp/repo",
+            working_tree_dir=repo_root,
             remotes=SimpleNamespace(
                 origin=SimpleNamespace(url="git@github.com:pyiron/pothenon.git")
             ),
@@ -40,7 +41,7 @@ class TestGetGitInfo(unittest.TestCase):
             info,
             {
                 "file": "tests/unit/test_git_parser.py",
-                "repo_root": "/tmp/repo",
+                "repo_root": repo_root,
                 "remote_url": "git@github.com:pyiron/pothenon.git",
                 "commit": "8bc2b82eb6e6c97dad4b3b01ccd522ce2ca6c38a",
                 "short_commit": "8bc2b82",
@@ -55,8 +56,9 @@ class TestGetGitInfo(unittest.TestCase):
 
     def test_get_git_info_handles_missing_origin_and_detached_head(self):
         source_file = "/tmp/repo/tests/unit/test_git_parser.py"
+        repo_root = str(Path(source_file).resolve().parents[2])
         repo = SimpleNamespace(
-            working_tree_dir="/tmp/repo",
+            working_tree_dir=repo_root,
             remotes=_MissingOrigin(),
             head=SimpleNamespace(
                 commit=SimpleNamespace(
