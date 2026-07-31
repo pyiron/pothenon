@@ -23,7 +23,7 @@ classifiers = [
 ]
 dependencies = [
     "gitpython==3.1.50",
-    "pyiron_snippets==1.2.1",
+    "pyiron_snippets==1.4.0",
 ]
 dynamic = [ "version",]
 authors = [
