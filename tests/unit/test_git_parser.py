@@ -16,6 +16,7 @@ class TestGetGitInfo(unittest.TestCase):
     def test_get_git_info_returns_metadata(self):
         source_file = "/tmp/repo/tests/unit/test_git_parser.py"
         repo_root = str(Path(source_file).resolve().parents[2])
+        relative_source_file = str(Path("tests/unit/test_git_parser.py"))
         repo = SimpleNamespace(
             working_tree_dir=repo_root,
             remotes=SimpleNamespace(
@@ -40,7 +41,7 @@ class TestGetGitInfo(unittest.TestCase):
         self.assertEqual(
             info,
             {
-                "file": "tests/unit/test_git_parser.py",
+                "file": relative_source_file,
                 "repo_root": repo_root,
                 "remote_url": "git@github.com:pyiron/pothenon.git",
                 "commit": "8bc2b82eb6e6c97dad4b3b01ccd522ce2ca6c38a",
@@ -57,6 +58,7 @@ class TestGetGitInfo(unittest.TestCase):
     def test_get_git_info_handles_missing_origin_and_detached_head(self):
         source_file = "/tmp/repo/tests/unit/test_git_parser.py"
         repo_root = str(Path(source_file).resolve().parents[2])
+        relative_source_file = str(Path("tests/unit/test_git_parser.py"))
         repo = SimpleNamespace(
             working_tree_dir=repo_root,
             remotes=_MissingOrigin(),
@@ -79,7 +81,7 @@ class TestGetGitInfo(unittest.TestCase):
         self.assertEqual(info["branch"], None)
         self.assertEqual(info["dirty"], True)
         self.assertEqual(info["short_commit"], "1234567")
-        self.assertEqual(info["file"], "tests/unit/test_git_parser.py")
+        self.assertEqual(info["file"], relative_source_file)
 
     def test_invalid_git_repository(self):
         with (
