@@ -14,6 +14,17 @@ from pyiron_snippets import versions
 
 from pothenon import annotation_literalizer, object_scope
 
+predefined_variables: frozenset[str] = frozenset(
+    {
+        "__file__",
+        "__name__",
+        "__package__",
+        "__doc__",
+        "__loader__",
+        "__spec__",
+    }
+)
+
 
 def _to_import_statement(info: versions.VersionInfo, localname: str) -> str:
     # module: A.B, qualname: C, localname: C -> "from A.B import C"
@@ -106,6 +117,12 @@ class PackageInfo(typing.NamedTuple):
 CallDependencies = dict[str, PackageInfo]
 
 
+def _get_source_code(func_or_var: Callable[..., Any] | type[Any]) -> str:
+    if inspect.isfunction(func_or_var):
+        return annotation_literalizer.transform(func_or_var)
+    return inspect.getsource(func_or_var)
+
+
 def split_by_version_availability(
     call_dependencies: CallDependencies,
 ) -> tuple[CallDependencies, CallDependencies]:
@@ -194,6 +211,11 @@ class UndefinedVariableVisitor(ast.NodeVisitor):
     def visit_Import(self, node: ast.Import) -> None:
         self.imports.append(node)
 
+    def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
+        if node.name:
+            self.defined_vars.add(node.name)
+        self.generic_visit(node)
+
 
 def _resolve_or_import(name: str, scope: object_scope.Scope) -> object:
     try:
@@ -223,10 +245,7 @@ def find_undefined_variables(
     try:
         # Prefer actual source code over string representations for both
         # callables and other inspectable objects (e.g. classes, modules).
-        if inspect.isfunction(func_or_var):
-            raw_source = annotation_literalizer.transform(func_or_var)
-        else:
-            raw_source = inspect.getsource(func_or_var)
+        raw_source = _get_source_code(func_or_var)
     except (OSError, TypeError, SyntaxError):
         # No reliable source available; treat as having no undefined variables.
         return {}
@@ -258,16 +277,16 @@ def get_call_dependencies(
 
     # Find variables that are used but not defined
     for name, obj in find_undefined_variables(func_or_var).items():
+        if name in predefined_variables:
+            continue
         info = versions.VersionInfo.of(obj, version_scraping=version_scraping)
 
         if info.version is None:
-            if inspect.isclass(obj):
-                raise TypeError(f"{name!r} is a class without a version")
             if callable(obj):
                 call_dependencies[name] = PackageInfo(
                     name,
                     info,
-                    source_code=annotation_literalizer.transform(obj),
+                    source_code=_get_source_code(obj),
                     dependency=get_call_dependencies(
                         obj, version_scraping, call_dependencies
                     ),
@@ -285,10 +304,7 @@ def get_call_dependencies(
 
 def get_full_source(func_or_var: Callable[..., Any] | type[Any]) -> PackageInfo:
     try:
-        if inspect.isfunction(func_or_var):
-            source = annotation_literalizer.transform(func_or_var)
-        else:
-            source = inspect.getsource(func_or_var)
+        source = _get_source_code(func_or_var)
     except (OSError, TypeError):
         source = None
 
