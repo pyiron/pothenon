@@ -150,6 +150,7 @@ class TestImportStatements(unittest.TestCase):
         )
         root_dependencies["helper"] = helper
         root_dependencies["math"] = direct_versioned
+        root_dependencies["math_alias"] = dependency_parser.PackageInfo(localname="math_alias", info=VersionInfo(module="math", qualname=None, version="1.0.0"))
         helper_dependencies["root"] = root
 
         self.assertEqual(
