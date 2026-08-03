@@ -71,6 +71,36 @@ class PackageInfo(typing.NamedTuple):
             else ""
         )
 
+    @property
+    def dependency_versions(self) -> list[versions.VersionInfo]:
+        return self._dependency_versions(set(), set())
+
+    def _dependency_versions(
+        self,
+        seen_packages: set[int],
+        seen_infos: set[tuple[str, str | None, str]],
+    ) -> list[versions.VersionInfo]:
+        if id(self) in seen_packages:
+            return []
+        seen_packages.add(id(self))
+
+        infos: list[versions.VersionInfo] = []
+        if self.dependency:
+            for name in sorted(self.dependency):
+                dependency = self.dependency[name]
+                if dependency.info.version is not None:
+                    key = (
+                        dependency.info.module,
+                        dependency.info.qualname,
+                        dependency.info.version,
+                    )
+                    if key not in seen_infos:
+                        seen_infos.add(key)
+                        infos.append(dependency.info)
+                infos.extend(dependency._dependency_versions(seen_packages, seen_infos))
+
+        return infos
+
     def export(self, _seen: set[int] | None = None) -> str:
         seen = set() if _seen is None else _seen
         if id(self) in seen:

@@ -124,6 +124,43 @@ class TestImportStatements(unittest.TestCase):
             "from pkg import helper\n\n" "def root():\n    return helper()\n",
         )
 
+    def test_package_info_dependency_versions_collects_recursive_versioned_deps(self):
+        nested_versioned = dependency_parser.PackageInfo(
+            localname="json",
+            info=VersionInfo(module="json", qualname=None, version="2.0.0"),
+        )
+        direct_versioned = dependency_parser.PackageInfo(
+            localname="math",
+            info=VersionInfo(module="math", qualname=None, version="1.0.0"),
+        )
+
+        root_dependencies: dict[str, dependency_parser.PackageInfo] = {}
+        helper_dependencies: dict[str, dependency_parser.PackageInfo] = {
+            "json": nested_versioned
+        }
+        root = dependency_parser.PackageInfo(
+            localname="root",
+            info=VersionInfo(module="local", qualname="root", version=None),
+            dependency=root_dependencies,
+        )
+        helper = dependency_parser.PackageInfo(
+            localname="helper",
+            info=VersionInfo(module="local", qualname="helper", version=None),
+            dependency=helper_dependencies,
+        )
+        root_dependencies["helper"] = helper
+        root_dependencies["math"] = direct_versioned
+        root_dependencies["math_alias"] = dependency_parser.PackageInfo(
+            localname="math_alias",
+            info=VersionInfo(module="math", qualname=None, version="1.0.0"),
+        )
+        helper_dependencies["root"] = root
+
+        self.assertEqual(
+            root.dependency_versions,
+            [nested_versioned.info, direct_versioned.info],
+        )
+
     def test_package_info_str_matches_export(self):
         package = dependency_parser.PackageInfo(
             localname="x",
