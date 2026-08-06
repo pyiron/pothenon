@@ -118,7 +118,9 @@ class TestGetRepositoryDependencies(unittest.TestCase):
 
         with (
             patch.object(git_parser.git.Repo, "clone_from", return_value=repo) as clone,
-            patch.object(git_parser, "_from_pyproject", return_value=expected) as from_pp,
+            patch.object(
+                git_parser, "_from_pyproject", return_value=expected
+            ) as from_pp,
             patch.object(git_parser, "_from_requirements", return_value=[]) as from_req,
         ):
             result = git_parser.get_repository_dependencies(
@@ -146,7 +148,9 @@ class TestGetRepositoryDependencies(unittest.TestCase):
                 git_parser, "_from_requirements", return_value=expected
             ) as from_req,
         ):
-            result = git_parser.get_repository_dependencies("https://example.com/repo.git")
+            result = git_parser.get_repository_dependencies(
+                "https://example.com/repo.git"
+            )
 
         self.assertEqual(result, expected)
         repo.git.checkout.assert_not_called()
@@ -161,7 +165,9 @@ class TestGetRepositoryDependencies(unittest.TestCase):
             patch.object(git_parser, "_from_pyproject", return_value=[]),
             patch.object(git_parser, "_from_requirements", return_value=[]),
         ):
-            result = git_parser.get_repository_dependencies("https://example.com/repo.git")
+            result = git_parser.get_repository_dependencies(
+                "https://example.com/repo.git"
+            )
 
         self.assertEqual(result, [])
 
