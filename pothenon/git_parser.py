@@ -1,9 +1,14 @@
+import configparser
 import importlib.util
 import inspect
+import re
+import subprocess
+import tomllib
 from collections.abc import Callable
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from dataclasses import dataclass
 import git
 
 
@@ -77,3 +82,204 @@ def load_function(
         spec.loader.exec_module(module)
 
         return getattr(module, function_name)
+
+
+@dataclass(frozen=True)
+class Dependency:
+    name: str
+    specifier: str = ""
+    source: str = ""
+
+    def __str__(self):
+        return f"{self.name}{self.specifier}"
+
+
+def get_repository_dependencies(
+    repo_url: str,
+    ref: str | None = None,
+) -> list[Dependency]:
+    """
+    Extract dependencies from a git repository.
+
+    Parameters
+    ----------
+    repo_url:
+        Git repository URL.
+
+    ref:
+        Optional branch/tag/commit.
+
+    Returns
+    -------
+    List of Dependency objects.
+    """
+
+    with TemporaryDirectory() as tmp:
+        repo_path = Path(tmp)
+
+        clone_cmd = [
+            "git",
+            "clone",
+            "--depth",
+            "1",
+        ]
+
+        if ref:
+            clone_cmd += [
+                "--branch",
+                ref,
+            ]
+
+        clone_cmd += [
+            repo_url,
+            str(repo_path),
+        ]
+
+        subprocess.run(
+            clone_cmd,
+            check=True,
+            stdout=subprocess.DEVNULL,
+        )
+
+        for extractor in (
+            _from_pyproject,
+            _from_requirements,
+        ):
+            deps = extractor(repo_path)
+
+            if deps:
+                return deps
+
+    return []
+
+
+def _from_pyproject(repo_path: Path) -> list[Dependency]:
+    path = repo_path / "pyproject.toml"
+
+    if not path.exists():
+        return []
+
+    with open(path, "rb") as f:
+        data = tomllib.load(f)
+
+    result = []
+
+    # PEP 621
+    project = data.get("project", {})
+
+    for dep in project.get("dependencies", []):
+        result.append(
+            _parse_requirement(
+                dep,
+                "pyproject.toml",
+            )
+        )
+
+    for group in project.get(
+        "optional-dependencies",
+        {},
+    ).values():
+
+        for dep in group:
+            result.append(
+                _parse_requirement(
+                    dep,
+                    "pyproject.toml",
+                )
+            )
+
+    if result:
+        return result
+
+    # Poetry
+    poetry = data.get("tool", {}).get("poetry", {}).get("dependencies", {})
+
+    for name, value in poetry.items():
+
+        if name == "python":
+            continue
+
+        if isinstance(value, str):
+            result.append(
+                Dependency(
+                    name,
+                    value,
+                    "poetry",
+                )
+            )
+
+        elif isinstance(value, dict):
+            result.append(
+                Dependency(
+                    name,
+                    value.get("version", ""),
+                    "poetry",
+                )
+            )
+
+    if result:
+        return result
+
+    # PDM
+    pdm = data.get("tool", {}).get("pdm", {}).get("dependencies", {})
+
+    for name, version in pdm.items():
+        result.append(
+            Dependency(
+                name,
+                str(version),
+                "pdm",
+            )
+        )
+
+    return result
+
+
+def _parse_requirement(
+    requirement: str,
+    source: str,
+) -> Dependency:
+
+    match = re.match(
+        r"([A-Za-z0-9_.-]+)(.*)",
+        requirement,
+    )
+
+    if not match:
+        return Dependency(
+            requirement,
+            "",
+            source,
+        )
+
+    return Dependency(
+        name=match.group(1),
+        specifier=match.group(2),
+        source=source,
+    )
+
+
+def _from_requirements(repo_path: Path) -> list[Dependency]:
+
+    path = repo_path / "requirements.txt"
+
+    if not path.exists():
+        return []
+
+    result = []
+
+    for line in path.read_text().splitlines():
+
+        line = line.strip()
+
+        if not line or line.startswith("#") or line.startswith("-"):
+            continue
+
+        result.append(
+            _parse_requirement(
+                line,
+                "requirements.txt",
+            )
+        )
+
+    return result
