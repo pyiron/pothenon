@@ -100,11 +100,28 @@ class TestGetGitInfo(unittest.TestCase):
         self.assertIn("No git repository found", str(context.exception))
 
     def test_load_function(self):
-        f = git_parser.load_function(
-            "DotDict",
-            remote_url="git@github.com:pyiron/pyiron_snippets.git",
-            file_name="pyiron_snippets/dotdict.py",
-        )
+        from tempfile import TemporaryDirectory
+
+        with TemporaryDirectory() as tmpdir:
+            # Create a minimal module file that the loader will import (no network access)
+            pkg_dir = Path(tmpdir) / "pyiron_snippets"
+            pkg_dir.mkdir(parents=True, exist_ok=True)
+            (pkg_dir / "dotdict.py").write_text("class DotDict:\n    pass\n")
+
+            fake_repo = SimpleNamespace(git=SimpleNamespace(checkout=Mock()))
+            with (
+                patch.object(git_parser, "TemporaryDirectory") as tmpdir_cls,
+                patch.object(git_parser.git.Repo, "clone_from", return_value=fake_repo),
+            ):
+                tmpdir_ctx = tmpdir_cls.return_value
+                tmpdir_ctx.__enter__.return_value = tmpdir
+
+                f = git_parser.load_function(
+                    "DotDict",
+                    remote_url="git@github.com:pyiron/pyiron_snippets.git",
+                    file_name="pyiron_snippets/dotdict.py",
+                )
+
         f.my_value = 1
         self.assertEqual(f.my_value, 1)
 
