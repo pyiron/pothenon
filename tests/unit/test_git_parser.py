@@ -99,6 +99,15 @@ class TestGetGitInfo(unittest.TestCase):
 
         self.assertIn("No git repository found", str(context.exception))
 
+    def test_load_function(self):
+        f = git_parser.load_function(
+            "DotDict",
+            remote_url="git@github.com:pyiron/pyiron_snippets.git",
+            file_name="pyiron_snippets/dotdict.py",
+        )
+        f.my_value = 1
+        self.assertEqual(f.my_value, 1)
+
 
 if __name__ == "__main__":
     unittest.main()
