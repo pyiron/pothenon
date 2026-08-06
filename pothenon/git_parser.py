@@ -57,6 +57,7 @@ def get_git_info(func: Callable) -> dict:
 def load_function(function_name: str, remote_url: str, file_name: str, commit: str | None = None):
     with TemporaryDirectory() as tmpdir:
         # Clone the repository
+        remote_url = "https://" + remote_url.replace("git@", "").replace(":", "/")
         repo = git.Repo.clone_from(remote_url, tmpdir)
 
         # Checkout the desired commit
