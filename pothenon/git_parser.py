@@ -75,11 +75,12 @@ def load_function(
 
         # Load the module
         file_path = Path(tmpdir) / file_name
+        if not file_path.is_file():
+            raise FileNotFoundError(f"File not found in cloned repository: {file_name}")
 
-        spec = importlib.util.spec_from_file_location(
-            file_path.stem,
-            file_path,
-        )
+        spec = importlib.util.spec_from_file_location(file_path.stem, file_path)
+        if spec is None or spec.loader is None:
+            raise ImportError(f"Cannot import module from {file_path}")
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
 
