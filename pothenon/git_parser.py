@@ -57,7 +57,9 @@ def load_function(
 ):
     with TemporaryDirectory() as tmpdir:
         # Clone the repository
-        remote_url = "https://" + remote_url.replace("git@", "").replace(":", "/")
+        remote_url = "https://" + remote_url.replace("git@", "").replace(
+            "https://", ""
+        ).replace(":", "/")
         repo = git.Repo.clone_from(remote_url, tmpdir)
 
         # Checkout the desired commit
