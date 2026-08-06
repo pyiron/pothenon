@@ -55,6 +55,13 @@ def get_git_info(func: Callable) -> dict:
 def load_function(
     function_name: str, remote_url: str, file_name: str, commit: str | None = None
 ):
+    """Load a symbol from a Python file in a git repository.
+
+    Warning:
+        This clones a repository and executes the target Python file, which is
+        arbitrary code execution. Only use this with trusted repositories and
+        pinned commits.
+    """
     with TemporaryDirectory() as tmpdir:
         # Clone the repository
         remote_url = "https://" + remote_url.replace("git@", "").replace(
