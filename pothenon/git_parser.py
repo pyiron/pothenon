@@ -62,7 +62,7 @@ def load_function(
 
         # Checkout the desired commit
         if commit is not None:
-            repo.git.checkout(metadata["commit"])
+            repo.git.checkout(commit)
 
         # Load the module
         file_path = Path(tmpdir) / file_name
