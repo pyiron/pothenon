@@ -109,5 +109,62 @@ class TestGetGitInfo(unittest.TestCase):
         self.assertEqual(f.my_value, 1)
 
 
+class TestGetRepositoryDependencies(unittest.TestCase):
+    def test_returns_dependencies_from_pyproject_first(self):
+        expected = [
+            git_parser.Dependency(name="numpy", specifier=">=1.0", source="pyproject")
+        ]
+        repo = SimpleNamespace(git=SimpleNamespace(checkout=Mock()))
+
+        with (
+            patch.object(git_parser.git.Repo, "clone_from", return_value=repo) as clone,
+            patch.object(git_parser, "_from_pyproject", return_value=expected) as from_pp,
+            patch.object(git_parser, "_from_requirements", return_value=[]) as from_req,
+        ):
+            result = git_parser.get_repository_dependencies(
+                "https://example.com/repo.git", commit="abc123"
+            )
+
+        self.assertEqual(result, expected)
+        clone.assert_called_once()
+        repo.git.checkout.assert_called_once_with("abc123")
+        from_pp.assert_called_once()
+        from_req.assert_not_called()
+
+    def test_falls_back_to_requirements_when_pyproject_empty(self):
+        expected = [
+            git_parser.Dependency(
+                name="pandas", specifier="==2.0.0", source="requirements.txt"
+            )
+        ]
+        repo = SimpleNamespace(git=SimpleNamespace(checkout=Mock()))
+
+        with (
+            patch.object(git_parser.git.Repo, "clone_from", return_value=repo),
+            patch.object(git_parser, "_from_pyproject", return_value=[]) as from_pp,
+            patch.object(
+                git_parser, "_from_requirements", return_value=expected
+            ) as from_req,
+        ):
+            result = git_parser.get_repository_dependencies("https://example.com/repo.git")
+
+        self.assertEqual(result, expected)
+        repo.git.checkout.assert_not_called()
+        from_pp.assert_called_once()
+        from_req.assert_called_once()
+
+    def test_returns_empty_list_when_no_extractors_find_dependencies(self):
+        repo = SimpleNamespace(git=SimpleNamespace(checkout=Mock()))
+
+        with (
+            patch.object(git_parser.git.Repo, "clone_from", return_value=repo),
+            patch.object(git_parser, "_from_pyproject", return_value=[]),
+            patch.object(git_parser, "_from_requirements", return_value=[]),
+        ):
+            result = git_parser.get_repository_dependencies("https://example.com/repo.git")
+
+        self.assertEqual(result, [])
+
+
 if __name__ == "__main__":
     unittest.main()
