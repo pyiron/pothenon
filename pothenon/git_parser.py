@@ -96,50 +96,25 @@ class Dependency:
 
 def get_repository_dependencies(
     repo_url: str,
-    ref: str | None = None,
+    commit: str | None = None,
 ) -> list[Dependency]:
     """
     Extract dependencies from a git repository.
 
-    Parameters
-    ----------
-    repo_url:
-        Git repository URL.
+    Args:
+        repo_url (str): Git repository URL.
+        commit (str, optional): Commit hash to checkout. Defaults to None.
 
-    ref:
-        Optional branch/tag/commit.
-
-    Returns
-    -------
-    List of Dependency objects.
+    Returns:
+        List of Dependency objects.
     """
 
     with TemporaryDirectory() as tmp:
         repo_path = Path(tmp)
 
-        clone_cmd = [
-            "git",
-            "clone",
-            "--depth",
-            "1",
-        ]
-
-        if ref:
-            clone_cmd += [
-                "--branch",
-                ref,
-            ]
-
-        clone_cmd += [
-            repo_url,
-            str(repo_path),
-        ]
-
-        subprocess.run(
-            clone_cmd,
-            check=True,
-            stdout=subprocess.DEVNULL,
-        )
+        repo = git.Repo.clone_from(repo_url, repo_path)
+        if commit:
+            repo.git.checkout(commit)
 
         for extractor in (
             _from_pyproject,
