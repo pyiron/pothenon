@@ -1,12 +1,10 @@
-import inspect
 import importlib.util
+import inspect
 from collections.abc import Callable
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import git
-
-
 
 
 def get_git_info(func: Callable) -> dict:
@@ -54,7 +52,9 @@ def get_git_info(func: Callable) -> dict:
     }
 
 
-def load_function(function_name: str, remote_url: str, file_name: str, commit: str | None = None):
+def load_function(
+    function_name: str, remote_url: str, file_name: str, commit: str | None = None
+):
     with TemporaryDirectory() as tmpdir:
         # Clone the repository
         remote_url = "https://" + remote_url.replace("git@", "").replace(":", "/")
