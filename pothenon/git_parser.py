@@ -239,20 +239,26 @@ def _from_requirements(repo_path: Path) -> list[Dependency]:
     if not path.exists():
         return []
 
-    result = []
+    result: list[Dependency] = []
 
-    for line in path.read_text().splitlines():
+    def _parse_file(req_path: Path) -> None:
+        for raw in req_path.read_text(encoding="utf-8").splitlines():
+            line = raw.split("#", 1)[0].strip()
+            if not line:
+                continue
 
-        line = line.strip()
+            if line.startswith(("-r ", "--requirement ")):
+                _, include = line.split(maxsplit=1)
+                include_path = (req_path.parent / include).resolve()
+                if include_path.exists():
+                    _parse_file(include_path)
+                continue
 
-        if not line or line.startswith("#") or line.startswith("-"):
-            continue
+            if line.startswith("-"):
+                continue
 
-        result.append(
-            _parse_requirement(
-                line,
-                "requirements.txt",
-            )
-        )
+            result.append(_parse_requirement(line, req_path.name))
+
+    _parse_file(path)
 
     return result
