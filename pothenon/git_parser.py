@@ -110,7 +110,11 @@ def get_repository_dependencies(
     with TemporaryDirectory() as tmp:
         repo_path = Path(tmp)
 
-        repo = git.Repo.clone_from(repo_url, repo_path)
+        normalized_url = repo_url
+        if repo_url.startswith("git@"):
+            normalized_url = "https://" + repo_url.replace("git@", "").replace(":", "/")
+
+        repo = git.Repo.clone_from(normalized_url, repo_path)
         if commit:
             repo.git.checkout(commit)
 
