@@ -104,7 +104,7 @@ class TestGetGitInfo(unittest.TestCase):
 
         with TemporaryDirectory() as tmpdir:
             # Create a minimal module file that the loader will import (no network access)
-            pkg_dir = Path(tmpdir) / "pyiron_snippets"
+            pkg_dir = Path(tmpdir) / "pyiron_snippets" / "nested"
             pkg_dir.mkdir(parents=True, exist_ok=True)
             (pkg_dir / "dotdict.py").write_text("class DotDict:\n    pass\n")
 
@@ -119,11 +119,63 @@ class TestGetGitInfo(unittest.TestCase):
                 f = git_parser.load_function(
                     "DotDict",
                     remote_url="git@github.com:pyiron/pyiron_snippets.git",
-                    file_name="pyiron_snippets/dotdict.py",
+                    file_name="pyiron_snippets/nested/dotdict.py",
+                    commit="0123456789abcdef",
                 )
 
         f.my_value = 1
         self.assertEqual(f.my_value, 1)
+        fake_repo.git.checkout.assert_called_once_with("0123456789abcdef")
+
+    def test_load_function_raises_file_not_found_for_missing_module(self):
+        fake_repo = SimpleNamespace(git=SimpleNamespace(checkout=Mock()))
+
+        with (
+            patch.object(git_parser, "TemporaryDirectory") as tmpdir_cls,
+            patch.object(git_parser.git.Repo, "clone_from", return_value=fake_repo),
+            self.assertRaises(FileNotFoundError) as context,
+        ):
+            tmpdir_ctx = tmpdir_cls.return_value
+            tmpdir_ctx.__enter__.return_value = "/tmp/missing-repo"
+
+            git_parser.load_function(
+                "DotDict",
+                remote_url="git@github.com:pyiron/pyiron_snippets.git",
+                file_name="pyiron_snippets/nested/dotdict.py",
+            )
+
+        self.assertIn("File not found in cloned repository", str(context.exception))
+
+    def test_load_function_raises_import_error_for_missing_loader(self):
+        from tempfile import TemporaryDirectory
+
+        with TemporaryDirectory() as tmpdir:
+            pkg_dir = Path(tmpdir) / "pyiron_snippets"
+            pkg_dir.mkdir(parents=True, exist_ok=True)
+            module_file = pkg_dir / "dotdict.py"
+            module_file.write_text("class DotDict:\n    pass\n")
+            fake_repo = SimpleNamespace(git=SimpleNamespace(checkout=Mock()))
+
+            with (
+                patch.object(git_parser, "TemporaryDirectory") as tmpdir_cls,
+                patch.object(git_parser.git.Repo, "clone_from", return_value=fake_repo),
+                patch.object(
+                    git_parser.importlib.util,
+                    "spec_from_file_location",
+                    return_value=SimpleNamespace(loader=None),
+                ),
+                self.assertRaises(ImportError) as context,
+            ):
+                tmpdir_ctx = tmpdir_cls.return_value
+                tmpdir_ctx.__enter__.return_value = tmpdir
+
+                git_parser.load_function(
+                    "DotDict",
+                    remote_url="git@github.com:pyiron/pyiron_snippets.git",
+                    file_name="pyiron_snippets/dotdict.py",
+                )
+
+        self.assertIn("Cannot import module", str(context.exception))
 
 
 if __name__ == "__main__":
