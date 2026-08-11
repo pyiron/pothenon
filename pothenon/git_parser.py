@@ -1,6 +1,8 @@
+import importlib.util
 import inspect
 from collections.abc import Callable
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import git
 
@@ -48,3 +50,38 @@ def get_git_info(func: Callable) -> dict:
         "branch": None if repo.head.is_detached else repo.active_branch.name,
         "dirty": repo.is_dirty(untracked_files=True),
     }
+
+
+def load_function(
+    function_name: str, remote_url: str, file_name: str, commit: str | None = None
+):
+    """Load a symbol from a Python file in a git repository.
+
+    Warning:
+        This clones a repository and executes the target Python file, which is
+        arbitrary code execution. Only use this with trusted repositories and
+        pinned commits.
+    """
+    with TemporaryDirectory() as tmpdir:
+        # Clone the repository
+        remote_url = "https://" + remote_url.replace("git@", "").replace(
+            "https://", ""
+        ).replace(":", "/")
+        repo = git.Repo.clone_from(remote_url, tmpdir)
+
+        # Checkout the desired commit
+        if commit is not None:
+            repo.git.checkout(commit)
+
+        # Load the module
+        file_path = Path(tmpdir) / file_name
+        if not file_path.is_file():
+            raise FileNotFoundError(f"File not found in cloned repository: {file_name}")
+
+        spec = importlib.util.spec_from_file_location(file_path.stem, file_path)
+        if spec is None or spec.loader is None:
+            raise ImportError(f"Cannot import module from {file_path}")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+        return getattr(module, function_name)
