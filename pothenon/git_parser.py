@@ -95,7 +95,7 @@ class Dependency:
 def get_repository_dependencies(
     repo_url: str,
     commit: str | None = None,
-) -> list[Dependency]:
+) -> list[Dependency] | None:
     """
     Extract dependencies from a git repository.
 
@@ -118,16 +118,20 @@ def get_repository_dependencies(
         if commit:
             repo.git.checkout(commit)
 
+        file_found = False
         for extractor in (
             _from_pyproject,
             _from_requirements,
         ):
             deps = extractor(repo_path)
 
+            if isinstance(deps, list):
+                file_found = True
+
             if deps:
                 return deps
 
-    return []
+    return [] if file_found else None
 
 
 def _from_pyproject(repo_path: Path) -> list[Dependency] | None:
@@ -139,25 +143,11 @@ def _from_pyproject(repo_path: Path) -> list[Dependency] | None:
     with open(path, "rb") as f:
         data = tomllib.load(f)
 
-    result = []
+    def _from_pep_621(data: dict) -> list[Dependency]:
+        result = []
+        project = data.get("project", {})
 
-    # PEP 621
-    project = data.get("project", {})
-
-    for dep in project.get("dependencies", []):
-        result.append(
-            _parse_requirement(
-                dep,
-                "pyproject.toml",
-            )
-        )
-
-    for group in project.get(
-        "optional-dependencies",
-        {},
-    ).values():
-
-        for dep in group:
+        for dep in project.get("dependencies", []):
             result.append(
                 _parse_requirement(
                     dep,
@@ -165,51 +155,69 @@ def _from_pyproject(repo_path: Path) -> list[Dependency] | None:
                 )
             )
 
-    if result:
+        for group in project.get(
+            "optional-dependencies",
+            {},
+        ).values():
+
+            for dep in group:
+                result.append(
+                    _parse_requirement(
+                        dep,
+                        "pyproject.toml",
+                    )
+                )
         return result
 
-    # Poetry
-    poetry = data.get("tool", {}).get("poetry", {}).get("dependencies", {})
+    def _from_poetry(data: dict) -> list[Dependency]:
+        result = []
+        poetry = data.get("tool", {}).get("poetry", {}).get("dependencies", {})
 
-    for name, value in poetry.items():
+        for name, value in poetry.items():
 
-        if name == "python":
-            continue
+            if name == "python":
+                continue
 
-        if isinstance(value, str):
-            result.append(
-                Dependency(
-                    name,
-                    value,
-                    "poetry",
+            if isinstance(value, str):
+                result.append(
+                    Dependency(
+                        name,
+                        value,
+                        "poetry",
+                    )
                 )
-            )
 
-        elif isinstance(value, dict):
-            result.append(
-                Dependency(
-                    name,
-                    value.get("version", ""),
-                    "poetry",
+            elif isinstance(value, dict):
+                result.append(
+                    Dependency(
+                        name,
+                        value.get("version", ""),
+                        "poetry",
+                    )
                 )
-            )
-
-    if result:
         return result
 
-    # PDM
-    pdm = data.get("tool", {}).get("pdm", {}).get("dependencies", {})
+    def _from_pdm(data: dict) -> list[Dependency]:
+        pdm = data.get("tool", {}).get("pdm", {}).get("dependencies", {})
 
-    for name, version in pdm.items():
-        result.append(
+        return [
             Dependency(
                 name,
                 str(version),
                 "pdm",
             )
-        )
+            for name, version in pdm.items()
+        ]
 
-    return result
+    for extractor in (
+        _from_pep_621,
+        _from_poetry,
+        _from_pdm,
+    ):
+        if result := extractor(data):
+            return result
+
+    return []
 
 
 def _parse_requirement(
