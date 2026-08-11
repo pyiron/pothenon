@@ -130,11 +130,11 @@ def get_repository_dependencies(
     return []
 
 
-def _from_pyproject(repo_path: Path) -> list[Dependency]:
+def _from_pyproject(repo_path: Path) -> list[Dependency] | None:
     path = repo_path / "pyproject.toml"
 
     if not path.exists():
-        return []
+        return None
 
     with open(path, "rb") as f:
         data = tomllib.load(f)
@@ -236,12 +236,12 @@ def _parse_requirement(
     )
 
 
-def _from_requirements(repo_path: Path) -> list[Dependency]:
+def _from_requirements(repo_path: Path) -> list[Dependency] | None:
 
     path = repo_path / "requirements.txt"
 
     if not path.exists():
-        return []
+        return None
 
     result: list[Dependency] = []
 
