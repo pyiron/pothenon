@@ -124,7 +124,7 @@ class TestGetRepositoryDependencies(unittest.TestCase):
             ) as from_pp,
             patch.object(git_parser, "_from_requirements", return_value=[]) as from_req,
         ):
-            result = git_parser.get_repository_dependencies(
+            result = git_parser.get_declared_repository_dependencies(
                 "https://example.com/repo.git", commit="abc123"
             )
 
@@ -149,7 +149,7 @@ class TestGetRepositoryDependencies(unittest.TestCase):
                 git_parser, "_from_requirements", return_value=expected
             ) as from_req,
         ):
-            result = git_parser.get_repository_dependencies(
+            result = git_parser.get_declared_repository_dependencies(
                 "https://example.com/repo.git"
             )
 
@@ -166,7 +166,7 @@ class TestGetRepositoryDependencies(unittest.TestCase):
             patch.object(git_parser, "_from_pyproject", return_value=[]),
             patch.object(git_parser, "_from_requirements", return_value=[]),
         ):
-            result = git_parser.get_repository_dependencies(
+            result = git_parser.get_declared_repository_dependencies(
                 "https://example.com/repo.git"
             )
 

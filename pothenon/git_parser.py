@@ -92,7 +92,7 @@ class Dependency:
         return f"{self.name}{self.specifier}"
 
 
-def get_repository_dependencies(
+def get_declared_repository_dependencies(
     repo_url: str,
     commit: str | None = None,
 ) -> list[Dependency] | None:
