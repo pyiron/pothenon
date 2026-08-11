@@ -1,3 +1,4 @@
+import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -202,7 +203,6 @@ class TestFromRequirements(unittest.TestCase):
         return p
 
     def test_basic_requirements(self):
-        import tempfile
 
         with tempfile.TemporaryDirectory() as tmp:
             self._write_file(tmp, "requirements.txt", "numpy>=1.0\npandas==2.0\n")
@@ -215,7 +215,6 @@ class TestFromRequirements(unittest.TestCase):
         self.assertEqual(deps[1].specifier, "==2.0")
 
     def test_inline_comments_stripped(self):
-        import tempfile
 
         with tempfile.TemporaryDirectory() as tmp:
             self._write_file(tmp, "requirements.txt", "numpy>=1  # pinned\n")
@@ -226,7 +225,6 @@ class TestFromRequirements(unittest.TestCase):
         self.assertEqual(deps[0].specifier, ">=1")
 
     def test_blank_lines_and_comment_only_lines_skipped(self):
-        import tempfile
 
         with tempfile.TemporaryDirectory() as tmp:
             self._write_file(tmp, "requirements.txt", "\n# just a comment\nnumpy\n")
@@ -236,17 +234,17 @@ class TestFromRequirements(unittest.TestCase):
         self.assertEqual(deps[0].name, "numpy")
 
     def test_flag_lines_skipped(self):
-        import tempfile
 
         with tempfile.TemporaryDirectory() as tmp:
-            self._write_file(tmp, "requirements.txt", "--index-url https://example.com\nnumpy\n")
+            self._write_file(
+                tmp, "requirements.txt", "--index-url https://example.com\nnumpy\n"
+            )
             deps = git_parser._from_requirements(Path(tmp))
 
         self.assertEqual(len(deps), 1)
         self.assertEqual(deps[0].name, "numpy")
 
     def test_include_via_r_flag(self):
-        import tempfile
 
         with tempfile.TemporaryDirectory() as tmp:
             self._write_file(tmp, "base.txt", "scipy>=1.0\n")
@@ -258,12 +256,11 @@ class TestFromRequirements(unittest.TestCase):
         self.assertIn("numpy", names)
 
     def test_missing_requirements_file_returns_empty(self):
-        import tempfile
 
         with tempfile.TemporaryDirectory() as tmp:
             deps = git_parser._from_requirements(Path(tmp))
 
-        self.assertEqual(deps, [])
+        self.assertIsNone(deps)
 
 
 class TestFromPyproject(unittest.TestCase):
@@ -272,7 +269,6 @@ class TestFromPyproject(unittest.TestCase):
         p.write_text(content, encoding="utf-8")
 
     def test_pep621_dependencies(self):
-        import tempfile
 
         with tempfile.TemporaryDirectory() as tmp:
             self._write_pyproject(
@@ -288,7 +284,6 @@ class TestFromPyproject(unittest.TestCase):
         self.assertEqual(deps[1].name, "pandas")
 
     def test_pep621_optional_dependencies(self):
-        import tempfile
 
         with tempfile.TemporaryDirectory() as tmp:
             self._write_pyproject(
@@ -301,7 +296,6 @@ class TestFromPyproject(unittest.TestCase):
         self.assertEqual(deps[0].name, "pytest")
 
     def test_poetry_dependencies(self):
-        import tempfile
 
         with tempfile.TemporaryDirectory() as tmp:
             self._write_pyproject(
@@ -316,7 +310,6 @@ class TestFromPyproject(unittest.TestCase):
         self.assertEqual(deps[0].source, "poetry")
 
     def test_poetry_dict_dependency(self):
-        import tempfile
 
         with tempfile.TemporaryDirectory() as tmp:
             self._write_pyproject(
@@ -330,7 +323,6 @@ class TestFromPyproject(unittest.TestCase):
         self.assertEqual(deps[0].specifier, ">=1.0")
 
     def test_pdm_dependencies(self):
-        import tempfile
 
         with tempfile.TemporaryDirectory() as tmp:
             self._write_pyproject(
@@ -344,15 +336,13 @@ class TestFromPyproject(unittest.TestCase):
         self.assertEqual(deps[0].source, "pdm")
 
     def test_missing_pyproject_returns_empty(self):
-        import tempfile
 
         with tempfile.TemporaryDirectory() as tmp:
             deps = git_parser._from_pyproject(Path(tmp))
 
-        self.assertEqual(deps, [])
+        self.assertIsNone(deps)
 
     def test_pyproject_with_no_known_sections_returns_empty(self):
-        import tempfile
 
         with tempfile.TemporaryDirectory() as tmp:
             self._write_pyproject(tmp, "[build-system]\nrequires = []\n")
