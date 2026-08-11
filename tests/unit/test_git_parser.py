@@ -1,5 +1,6 @@
 import unittest
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
@@ -100,7 +101,6 @@ class TestGetGitInfo(unittest.TestCase):
         self.assertIn("No git repository found", str(context.exception))
 
     def test_load_function(self):
-        from tempfile import TemporaryDirectory
 
         with TemporaryDirectory() as tmpdir:
             # Create a minimal module file that the loader will import (no network access)
@@ -147,7 +147,6 @@ class TestGetGitInfo(unittest.TestCase):
         self.assertIn("File not found in cloned repository", str(context.exception))
 
     def test_load_function_raises_import_error_for_missing_loader(self):
-        from tempfile import TemporaryDirectory
 
         with TemporaryDirectory() as tmpdir:
             pkg_dir = Path(tmpdir) / "pyiron_snippets"
