@@ -78,3 +78,60 @@ def classify_package(package: versions.VersionInfo) -> tuple[str, str]:
         stacklevel=2,
     )
     return "unknown", "unknown"
+
+
+def get_conda_environment(
+    packages: list[versions.VersionInfo],
+    name: str | None = None,
+) -> str:
+    """
+    Get the content of package information to a Conda environment.yml file.
+
+    Standard-library packages are omitted. Unknown packages are skipped
+    with a warning.
+
+    Args:
+        packages (list[versions.VersionInfo]):
+            Packages to export.
+        name (str | None):
+            Optional Conda environment name.
+    """
+    conda_dependencies: list[str] = []
+    pip_dependencies: list[str] = []
+
+    for package in packages:
+        distribution, source = classify_package(package)
+
+        if source == "stdlib":
+            continue
+
+        if source == "unknown":
+            warnings.warn(
+                f"Skipping unknown package " f"{package.module}=={package.version}.",
+                stacklevel=2,
+            )
+            continue
+
+        if source == "conda":
+            conda_dependencies.append(f"{distribution}={package.version}")
+        elif source == "pip":
+            pip_dependencies.append(f"{distribution}=={package.version}")
+
+    lines = []
+
+    if name is not None:
+        lines.append(f"name: {name}")
+
+    lines.append("dependencies:")
+
+    for dependency in sorted(set(conda_dependencies)):
+        lines.append(f"  - {dependency}")
+
+    if pip_dependencies:
+        lines.append("  - pip")
+        lines.append("  - pip:")
+
+        for dependency in sorted(set(pip_dependencies)):
+            lines.append(f"      - {dependency}")
+
+    return "\n".join(lines)
