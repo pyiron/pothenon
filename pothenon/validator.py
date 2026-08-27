@@ -1,42 +1,24 @@
-import json
-import subprocess
 import sys
 import warnings
 from functools import cache
-from importlib.metadata import packages_distributions
+from importlib.metadata import distributions, packages_distributions
 
 from pyiron_snippets import versions
 
 
 @cache
 def _get_conda_packages() -> dict[str, dict[str, str]]:
-    try:
-        result = subprocess.run(
-            ["conda", "list", "--json"],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        packages = json.loads(result.stdout)
-    except (
-        FileNotFoundError,
-        subprocess.CalledProcessError,
-        json.JSONDecodeError,
-    ) as exc:
-        warnings.warn(
-            f"Unable to query conda packages via `conda list --json`: {exc}",
-            stacklevel=2,
-        )
-        return {}
-
-    return {
-        pkg["name"]: {
-            "version": pkg["version"],
-            "source": "pip" if pkg.get("channel") == "pypi" else "conda",
-        }
-        for pkg in packages
-        if "name" in pkg and "version" in pkg
-    }
+    result = {}
+    for dist in distributions():
+        meta = dist.metadata
+        name = meta.get("Name")
+        version = meta.get("Version")
+        if not name or not version:
+            continue
+        installer = (meta.get("Installer") or "").lower()
+        source = "pip" if installer == "pip" else "conda"
+        result[name] = {"version": version, "source": source}
+    return result
 
 
 @cache

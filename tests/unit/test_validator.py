@@ -1,101 +1,81 @@
 import unittest
 import warnings
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from pyiron_snippets.versions import VersionInfo
 
 from pothenon import validator
 
 
-class TestGetCondaPackages(unittest.TestCase):
-    def _make_conda_output(self, packages):
-        import json
+def _make_dist(name, version, installer=None):
+    """Create a mock distribution object mimicking importlib.metadata.Distribution."""
+    meta = {"Name": name, "Version": version}
+    if installer is not None:
+        meta["Installer"] = installer
 
-        return json.dumps(packages)
+    dist = MagicMock()
+    dist.metadata = meta
+    return dist
+
+
+class TestGetCondaPackages(unittest.TestCase):
+    def setUp(self):
+        validator._get_conda_packages.cache_clear()
+
+    def tearDown(self):
+        validator._get_conda_packages.cache_clear()
 
     def test_returns_dict_of_packages(self):
-        conda_output = self._make_conda_output(
-            [
-                {"name": "numpy", "version": "1.26.0", "channel": "defaults"},
-                {"name": "scipy", "version": "1.11.0", "channel": "defaults"},
-            ]
-        )
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value.stdout = conda_output
-            validator._get_conda_packages.cache_clear()
+        mock_dists = [
+            _make_dist("numpy", "1.26.0", installer="conda"),
+            _make_dist("scipy", "1.11.0", installer="conda"),
+        ]
+        with patch("pothenon.validator.distributions", return_value=mock_dists):
             result = validator._get_conda_packages()
         self.assertIn("numpy", result)
         self.assertEqual(result["numpy"]["version"], "1.26.0")
         self.assertEqual(result["numpy"]["source"], "conda")
 
-    def test_pip_channel_mapped_to_pip_source(self):
-        conda_output = self._make_conda_output(
-            [{"name": "mypackage", "version": "0.1.0", "channel": "pypi"}]
-        )
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value.stdout = conda_output
-            validator._get_conda_packages.cache_clear()
+    def test_pip_installer_mapped_to_pip_source(self):
+        mock_dists = [_make_dist("mypackage", "0.1.0", installer="pip")]
+        with patch("pothenon.validator.distributions", return_value=mock_dists):
             result = validator._get_conda_packages()
         self.assertEqual(result["mypackage"]["source"], "pip")
 
-    def test_file_not_found_returns_empty_dict(self):
-        with patch("subprocess.run", side_effect=FileNotFoundError):
-            validator._get_conda_packages.cache_clear()
-            with warnings.catch_warnings(record=True) as w:
-                warnings.simplefilter("always")
-                result = validator._get_conda_packages()
-            self.assertEqual(result, {})
-            self.assertTrue(any("conda list" in str(warning.message) for warning in w))
+    def test_no_installer_defaults_to_conda(self):
+        mock_dists = [_make_dist("somepackage", "2.0.0")]
+        with patch("pothenon.validator.distributions", return_value=mock_dists):
+            result = validator._get_conda_packages()
+        self.assertEqual(result["somepackage"]["source"], "conda")
 
-    def test_called_process_error_returns_empty_dict(self):
-        import subprocess
+    def test_packages_missing_name_are_skipped(self):
+        meta_no_name = {"Name": None, "Version": "1.0.0"}
+        dist_no_name = MagicMock()
+        dist_no_name.metadata = meta_no_name
+        mock_dists = [
+            _make_dist("numpy", "1.26.0", installer="conda"),
+            dist_no_name,
+        ]
+        with patch("pothenon.validator.distributions", return_value=mock_dists):
+            result = validator._get_conda_packages()
+        self.assertIn("numpy", result)
+        self.assertEqual(len(result), 1)
 
-        with patch(
-            "subprocess.run",
-            side_effect=subprocess.CalledProcessError(1, "conda"),
-        ):
-            validator._get_conda_packages.cache_clear()
-            with warnings.catch_warnings(record=True) as w:
-                warnings.simplefilter("always")
-                result = validator._get_conda_packages()
-            self.assertEqual(result, {})
-            self.assertTrue(len(w) > 0)
-
-    def test_invalid_json_returns_empty_dict(self):
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value.stdout = "not valid json"
-            validator._get_conda_packages.cache_clear()
-            with warnings.catch_warnings(record=True) as w:
-                warnings.simplefilter("always")
-                result = validator._get_conda_packages()
-            self.assertEqual(result, {})
-            self.assertTrue(len(w) > 0)
-
-    def test_packages_missing_name_or_version_are_skipped(self):
-        import json
-
-        conda_output = json.dumps(
-            [
-                {"name": "numpy", "version": "1.26.0", "channel": "defaults"},
-                {"version": "1.0.0", "channel": "defaults"},  # no name
-                {"name": "broken", "channel": "defaults"},  # no version
-            ]
-        )
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value.stdout = conda_output
-            validator._get_conda_packages.cache_clear()
+    def test_packages_missing_version_are_skipped(self):
+        meta_no_ver = {"Name": "broken"}
+        dist_no_ver = MagicMock()
+        dist_no_ver.metadata = meta_no_ver
+        mock_dists = [
+            _make_dist("numpy", "1.26.0", installer="conda"),
+            dist_no_ver,
+        ]
+        with patch("pothenon.validator.distributions", return_value=mock_dists):
             result = validator._get_conda_packages()
         self.assertIn("numpy", result)
         self.assertNotIn("broken", result)
 
-    def tearDown(self):
-        validator._get_conda_packages.cache_clear()
-
 
 class TestClassifyPackage(unittest.TestCase):
-    def _stdlib_package(self):
-        return VersionInfo(module="os", qualname="path", version=None)
-
     def test_stdlib_module_classified_as_stdlib(self):
         pkg = VersionInfo(module="os", qualname="path", version=None)
         result = validator.classify_package(pkg)
