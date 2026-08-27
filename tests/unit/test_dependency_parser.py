@@ -333,14 +333,14 @@ class TestUndefinedVariableVisitor(unittest.TestCase):
 x = 1
 
 
-def test_function(a, b):
+def _test_function(a, b):
     c = a + b + x
     return c
 
 
 class TestFindUndefinedVariables(unittest.TestCase):
     def test_find_undefined_variables(self):
-        undefined_vars = dependency_parser.find_undefined_variables(test_function)
+        undefined_vars = dependency_parser.find_undefined_variables(_test_function)
         self.assertIn("x", undefined_vars)
         self.assertNotIn("a", undefined_vars)
         self.assertNotIn("b", undefined_vars)
@@ -389,7 +389,7 @@ class TestFindUndefinedVariables(unittest.TestCase):
         with patch(
             "pothenon.annotation_literalizer.ast.parse", side_effect=SyntaxError
         ):
-            result = dependency_parser.find_undefined_variables(test_function)
+            result = dependency_parser.find_undefined_variables(_test_function)
         self.assertEqual(result, {})
 
 

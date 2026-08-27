@@ -62,7 +62,8 @@ class PackageInfo(typing.NamedTuple):
     info: versions.VersionInfo
     source_code: str | None = None
     dependency: dict[str, PackageInfo] | None = None
-    installation: str | None = None
+    package_name: str | None = None
+    source: str | None = None
 
     @property
     def import_statement(self) -> str:
@@ -315,10 +316,10 @@ def get_call_dependencies(
         else:
             if not callable(obj) and not isinstance(obj, types.ModuleType):
                 raise ValueError(f"{name!r} is not a callable or module with a version")
-            installation = (
-                validator.classify_package(info) if check_installation else None
-            )
-            call_dependencies[name] = PackageInfo(name, info, installation=installation)
+            n, s = None, None
+            if check_installation:
+                n, s = validator.classify_package(info)
+            call_dependencies[name] = PackageInfo(name, info, package_name=n, source=s)
     return call_dependencies
 
 

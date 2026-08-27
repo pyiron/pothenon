@@ -99,34 +99,48 @@ class TestClassifyPackage(unittest.TestCase):
     def test_stdlib_module_classified_as_stdlib(self):
         pkg = VersionInfo(module="os", qualname="path", version=None)
         result = validator.classify_package(pkg)
-        self.assertEqual(result, "stdlib")
+        self.assertEqual(result, ("os", "stdlib"))
 
     def test_dotted_stdlib_module_classified_as_stdlib(self):
         # e.g. os.path — top-level is "os", which is stdlib
         pkg = VersionInfo(module="os.path", qualname="join", version=None)
         result = validator.classify_package(pkg)
-        self.assertEqual(result, "stdlib")
+        self.assertEqual(result, ("os", "stdlib"))
 
     def test_conda_package_classified_as_conda(self):
         conda_data = {"numpy": {"version": "1.26.0", "source": "conda"}}
         pkg = VersionInfo(module="numpy", qualname="array", version="1.26.0")
         with patch.object(validator, "_get_conda_packages", return_value=conda_data):
             result = validator.classify_package(pkg)
-        self.assertEqual(result, "conda")
+        self.assertEqual(result, ("numpy", "conda"))
 
     def test_pip_package_classified_as_pip(self):
         conda_data = {"mypackage": {"version": "0.1.0", "source": "pip"}}
         pkg = VersionInfo(module="mypackage", qualname="func", version="0.1.0")
         with patch.object(validator, "_get_conda_packages", return_value=conda_data):
             result = validator.classify_package(pkg)
-        self.assertEqual(result, "pip")
+        self.assertEqual(result, ("mypackage", "pip"))
 
     def test_dotted_module_path_uses_top_level_for_lookup(self):
         conda_data = {"numpy": {"version": "1.26.0", "source": "conda"}}
         pkg = VersionInfo(module="numpy.linalg", qualname="norm", version="1.26.0")
         with patch.object(validator, "_get_conda_packages", return_value=conda_data):
             result = validator.classify_package(pkg)
-        self.assertEqual(result, "conda")
+        self.assertEqual(result, ("numpy", "conda"))
+
+    def test_distribution_name_is_resolved_from_import_name(self):
+        conda_data = {"scikit-learn": {"version": "1.5.0", "source": "conda"}}
+        pkg = VersionInfo(module="sklearn", qualname="linear_model", version="1.5.0")
+        with (
+            patch.object(validator, "_get_conda_packages", return_value=conda_data),
+            patch.object(
+                validator,
+                "_get_distribution_map",
+                return_value={"sklearn": ["scikit-learn"]},
+            ),
+        ):
+            result = validator.classify_package(pkg)
+        self.assertEqual(result, ("scikit-learn", "conda"))
 
     def test_unknown_package_returns_unknown_and_warns(self):
         conda_data = {}
@@ -137,7 +151,7 @@ class TestClassifyPackage(unittest.TestCase):
         ):
             warnings.simplefilter("always")
             result = validator.classify_package(pkg)
-        self.assertEqual(result, "unknown")
+        self.assertEqual(result, ("unknown", "unknown"))
         self.assertTrue(len(w) > 0)
 
     def test_version_mismatch_returns_unknown_and_warns(self):
@@ -149,7 +163,7 @@ class TestClassifyPackage(unittest.TestCase):
         ):
             warnings.simplefilter("always")
             result = validator.classify_package(pkg)
-        self.assertEqual(result, "unknown")
+        self.assertEqual(result, ("unknown", "unknown"))
         self.assertTrue(len(w) > 0)
 
 

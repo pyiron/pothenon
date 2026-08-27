@@ -3,6 +3,7 @@ import subprocess
 import sys
 import warnings
 from functools import cache
+from importlib.metadata import packages_distributions
 
 from pyiron_snippets import versions
 
@@ -38,7 +39,12 @@ def _get_conda_packages() -> dict[str, dict[str, str]]:
     }
 
 
-def classify_package(package: versions.VersionInfo) -> str:
+@cache
+def _get_distribution_map() -> dict[str, list[str]]:
+    return packages_distributions()
+
+
+def classify_package(package: versions.VersionInfo) -> tuple[str, str]:
     """
     Classify a package as either "stdlib", "conda", "pip", or "unknown".
 
@@ -46,21 +52,32 @@ def classify_package(package: versions.VersionInfo) -> str:
         package (versions.VersionInfo): The package to classify.
 
     Returns:
-        str: The classification of the package.
+        tuple[str, str]: A tuple containing the package name and its source.
     """
     module = package.module.split(".", 1)[0]
+
     if module in sys.stdlib_module_names:
-        return "stdlib"
+        return module, "stdlib"
+
     conda_packages = _get_conda_packages()
-    if (
-        module in conda_packages
-        and conda_packages[module]["version"] == package.version
-    ):
-        return conda_packages[module]["source"]
+
+    # First try the module name directly, since for many packages
+    # the import and distribution names are identical.
+    candidates = [module]
+
+    # Add distribution names associated with this import name.
+    candidates.extend(_get_distribution_map().get(module, []))
+
+    for candidate in candidates:
+        conda_package = conda_packages.get(candidate)
+
+        if conda_package is not None and conda_package["version"] == package.version:
+            return candidate, conda_package["source"]
+
     warnings.warn(
-        f"Package {package.module}=={package.version} not found in conda"
-        " environment or in the standard library. This could be due to the"
-        " package having a different name in conda.",
+        f"Package {package.module}=={package.version} not found in conda "
+        "environment or in the standard library. Tried distribution names: "
+        f"{candidates}.",
         stacklevel=2,
     )
-    return "unknown"
+    return "unknown", "unknown"
