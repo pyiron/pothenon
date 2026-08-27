@@ -699,7 +699,7 @@ class TestGetFullSource(unittest.TestCase):
 
         version_of.assert_called_once_with(_func_no_external)
         transform.assert_called_once_with(_func_no_external)
-        get_call_dependencies.assert_called_once_with(_func_no_external)
+        get_call_dependencies.assert_called_once_with(_func_no_external, check_installation=False)
         self.assertEqual(
             result,
             dependency_parser.PackageInfo(
