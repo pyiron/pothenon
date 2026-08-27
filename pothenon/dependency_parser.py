@@ -282,6 +282,7 @@ def find_undefined_variables(
 def get_call_dependencies(
     func_or_var: Callable[..., Any] | type[Any],
     version_scraping: versions.VersionScrapingMap | None = None,
+    *,
     check_installation: bool = False,
     _call_dependencies: CallDependencies | None = None,
 ) -> CallDependencies:
