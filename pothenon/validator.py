@@ -46,6 +46,7 @@ def classify_package(package: versions.VersionInfo) -> str:
     warnings.warn(
         f"Package {package.module}=={package.version} not found in conda"
         " environment or in the standard library. This could be due to the"
-        " package having a different name in conda.", stacklevel=2
+        " package having a different name in conda.",
+        stacklevel=2,
     )
     return "unknown"
