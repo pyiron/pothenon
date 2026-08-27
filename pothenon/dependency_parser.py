@@ -12,7 +12,7 @@ from typing import Any
 
 from pyiron_snippets import versions
 
-from pothenon import annotation_literalizer, object_scope, validator
+from pothenon import annotation_literalizer, object_scope, package_resolver
 
 predefined_variables: frozenset[str] = frozenset(
     {
@@ -124,7 +124,7 @@ class PackageInfo(typing.NamedTuple):
         return "\n\n".join(chunks)
 
     def get_env_file(self, name: str | None = None) -> str:
-        return validator.get_conda_environment(self.dependency_versions, name=name)
+        return package_resolver.get_conda_environment(self.dependency_versions, name=name)
 
     def __str__(self) -> str:
         return self.export()
@@ -321,7 +321,7 @@ def get_call_dependencies(
                 raise ValueError(f"{name!r} is not a callable or module with a version")
             n, s = None, None
             if check_installation:
-                n, s = validator.classify_package(info)
+                n, s = package_resolver.classify_package(info)
             call_dependencies[name] = PackageInfo(name, info, package_name=n, source=s)
     return call_dependencies
 

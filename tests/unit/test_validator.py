@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 from pyiron_snippets.versions import VersionInfo
 
-from pothenon import validator
+from pothenon import package_resolver
 
 
 def _make_dist(name, version, installer=None):
@@ -31,10 +31,10 @@ class TestGetCondaPackagesWithCondaAPI(unittest.TestCase):
     """Tests for _get_conda_packages when the conda Python API is available."""
 
     def setUp(self):
-        validator._get_conda_packages.cache_clear()
+        package_resolver._get_conda_packages.cache_clear()
 
     def tearDown(self):
-        validator._get_conda_packages.cache_clear()
+        package_resolver._get_conda_packages.cache_clear()
 
     def _patch_conda(self, records):
         mock_prefix_data = MagicMock()
@@ -82,8 +82,8 @@ class TestGetCondaPackagesWithCondaAPI(unittest.TestCase):
                 "conda.core.prefix_data": mock_conda_prefix_mod,
             },
         ):
-            validator._get_conda_packages.cache_clear()
-            result = validator._get_conda_packages()
+            package_resolver._get_conda_packages.cache_clear()
+            result = package_resolver._get_conda_packages()
 
         self.assertIn("numpy", result)
         self.assertEqual(result["numpy"]["version"], "1.26.0")
@@ -111,8 +111,8 @@ class TestGetCondaPackagesWithCondaAPI(unittest.TestCase):
                 "conda.core.prefix_data": mock_conda_prefix_mod,
             },
         ):
-            validator._get_conda_packages.cache_clear()
-            result = validator._get_conda_packages()
+            package_resolver._get_conda_packages.cache_clear()
+            result = package_resolver._get_conda_packages()
 
         self.assertEqual(result["mypackage"]["source"], "pip")
 
@@ -121,10 +121,10 @@ class TestGetCondaPackagesFallback(unittest.TestCase):
     """Tests for _get_conda_packages fallback when conda is not available."""
 
     def setUp(self):
-        validator._get_conda_packages.cache_clear()
+        package_resolver._get_conda_packages.cache_clear()
 
     def tearDown(self):
-        validator._get_conda_packages.cache_clear()
+        package_resolver._get_conda_packages.cache_clear()
 
     def test_falls_back_to_importlib_when_conda_unavailable(self):
         mock_dists = [
@@ -133,9 +133,9 @@ class TestGetCondaPackagesFallback(unittest.TestCase):
         ]
         with (
             patch.dict("sys.modules", {"conda": None}),
-            patch("pothenon.validator.distributions", return_value=mock_dists),
+            patch("pothenon.package_resolver.distributions", return_value=mock_dists),
         ):
-            result = validator._get_conda_packages()
+            result = package_resolver._get_conda_packages()
         self.assertIn("numpy", result)
         self.assertEqual(result["numpy"]["version"], "1.26.0")
         self.assertEqual(result["numpy"]["source"], "conda")
@@ -144,18 +144,18 @@ class TestGetCondaPackagesFallback(unittest.TestCase):
         mock_dists = [_make_dist("mypackage", "0.1.0", installer="pip")]
         with (
             patch.dict("sys.modules", {"conda": None}),
-            patch("pothenon.validator.distributions", return_value=mock_dists),
+            patch("pothenon.package_resolver.distributions", return_value=mock_dists),
         ):
-            result = validator._get_conda_packages()
+            result = package_resolver._get_conda_packages()
         self.assertEqual(result["mypackage"]["source"], "pip")
 
     def test_fallback_no_installer_defaults_to_conda(self):
         mock_dists = [_make_dist("somepackage", "2.0.0")]
         with (
             patch.dict("sys.modules", {"conda": None}),
-            patch("pothenon.validator.distributions", return_value=mock_dists),
+            patch("pothenon.package_resolver.distributions", return_value=mock_dists),
         ):
-            result = validator._get_conda_packages()
+            result = package_resolver._get_conda_packages()
         self.assertEqual(result["somepackage"]["source"], "conda")
 
     def test_fallback_packages_missing_name_or_version_skipped(self):
@@ -172,9 +172,9 @@ class TestGetCondaPackagesFallback(unittest.TestCase):
         ]
         with (
             patch.dict("sys.modules", {"conda": None}),
-            patch("pothenon.validator.distributions", return_value=mock_dists),
+            patch("pothenon.package_resolver.distributions", return_value=mock_dists),
         ):
-            result = validator._get_conda_packages()
+            result = package_resolver._get_conda_packages()
         self.assertIn("numpy", result)
         self.assertNotIn("broken", result)
 
@@ -182,58 +182,58 @@ class TestGetCondaPackagesFallback(unittest.TestCase):
 class TestClassifyPackage(unittest.TestCase):
     def test_stdlib_module_classified_as_stdlib(self):
         pkg = VersionInfo(module="os", qualname="path", version=None)
-        result = validator.classify_package(pkg)
+        result = package_resolver.classify_package(pkg)
         self.assertEqual(result, ("os", "stdlib"))
 
     def test_dotted_stdlib_module_classified_as_stdlib(self):
         pkg = VersionInfo(module="os.path", qualname="join", version=None)
-        result = validator.classify_package(pkg)
+        result = package_resolver.classify_package(pkg)
         self.assertEqual(result, ("os", "stdlib"))
 
     def test_conda_package_classified_as_conda(self):
         conda_data = {"numpy": {"version": "1.26.0", "source": "conda"}}
         pkg = VersionInfo(module="numpy", qualname="array", version="1.26.0")
-        with patch.object(validator, "_get_conda_packages", return_value=conda_data):
-            result = validator.classify_package(pkg)
+        with patch.object(package_resolver, "_get_conda_packages", return_value=conda_data):
+            result = package_resolver.classify_package(pkg)
         self.assertEqual(result, ("numpy", "conda"))
 
     def test_pip_package_classified_as_pip(self):
         conda_data = {"mypackage": {"version": "0.1.0", "source": "pip"}}
         pkg = VersionInfo(module="mypackage", qualname="func", version="0.1.0")
-        with patch.object(validator, "_get_conda_packages", return_value=conda_data):
-            result = validator.classify_package(pkg)
+        with patch.object(package_resolver, "_get_conda_packages", return_value=conda_data):
+            result = package_resolver.classify_package(pkg)
         self.assertEqual(result, ("mypackage", "pip"))
 
     def test_dotted_module_path_uses_top_level_for_lookup(self):
         conda_data = {"numpy": {"version": "1.26.0", "source": "conda"}}
         pkg = VersionInfo(module="numpy.linalg", qualname="norm", version="1.26.0")
-        with patch.object(validator, "_get_conda_packages", return_value=conda_data):
-            result = validator.classify_package(pkg)
+        with patch.object(package_resolver, "_get_conda_packages", return_value=conda_data):
+            result = package_resolver.classify_package(pkg)
         self.assertEqual(result, ("numpy", "conda"))
 
     def test_distribution_name_is_resolved_from_import_name(self):
         conda_data = {"scikit-learn": {"version": "1.5.0", "source": "conda"}}
         pkg = VersionInfo(module="sklearn", qualname="linear_model", version="1.5.0")
         with (
-            patch.object(validator, "_get_conda_packages", return_value=conda_data),
+            patch.object(package_resolver, "_get_conda_packages", return_value=conda_data),
             patch.object(
-                validator,
+                package_resolver,
                 "_get_distribution_map",
                 return_value={"sklearn": ["scikit-learn"]},
             ),
         ):
-            result = validator.classify_package(pkg)
+            result = package_resolver.classify_package(pkg)
         self.assertEqual(result, ("scikit-learn", "conda"))
 
     def test_unknown_package_returns_unknown_and_warns(self):
         conda_data = {}
         pkg = VersionInfo(module="unknownpkg", qualname="func", version="9.9.9")
         with (
-            patch.object(validator, "_get_conda_packages", return_value=conda_data),
+            patch.object(package_resolver, "_get_conda_packages", return_value=conda_data),
             warnings.catch_warnings(record=True) as w,
         ):
             warnings.simplefilter("always")
-            result = validator.classify_package(pkg)
+            result = package_resolver.classify_package(pkg)
         self.assertEqual(result, ("unknown", "unknown"))
         self.assertTrue(len(w) > 0)
 
@@ -241,11 +241,11 @@ class TestClassifyPackage(unittest.TestCase):
         conda_data = {"numpy": {"version": "1.24.0", "source": "conda"}}
         pkg = VersionInfo(module="numpy", qualname="array", version="1.26.0")
         with (
-            patch.object(validator, "_get_conda_packages", return_value=conda_data),
+            patch.object(package_resolver, "_get_conda_packages", return_value=conda_data),
             warnings.catch_warnings(record=True) as w,
         ):
             warnings.simplefilter("always")
-            result = validator.classify_package(pkg)
+            result = package_resolver.classify_package(pkg)
         self.assertEqual(result, ("unknown", "unknown"))
         self.assertTrue(len(w) > 0)
 
@@ -265,11 +265,11 @@ class TestGetCondaEnvironment(unittest.TestCase):
         }
 
         with patch.object(
-            validator,
+            package_resolver,
             "classify_package",
             side_effect=lambda package: classifications[package.module],
         ):
-            result = validator.get_conda_environment(packages, name="test-env")
+            result = package_resolver.get_conda_environment(packages, name="test-env")
 
         self.assertEqual(
             result,
@@ -293,7 +293,7 @@ class TestGetCondaEnvironment(unittest.TestCase):
 
         with (
             patch.object(
-                validator,
+                package_resolver,
                 "classify_package",
                 side_effect=[
                     ("os", "stdlib"),
@@ -303,7 +303,7 @@ class TestGetCondaEnvironment(unittest.TestCase):
             warnings.catch_warnings(record=True) as caught_warnings,
         ):
             warnings.simplefilter("always")
-            result = validator.get_conda_environment(packages)
+            result = package_resolver.get_conda_environment(packages)
 
         self.assertEqual(result, "dependencies:")
         self.assertEqual(len(caught_warnings), 1)
@@ -319,7 +319,7 @@ class TestGetCondaEnvironment(unittest.TestCase):
         ]
 
         with patch.object(
-            validator,
+            package_resolver,
             "classify_package",
             side_effect=[
                 ("zpackage", "conda"),
@@ -327,7 +327,7 @@ class TestGetCondaEnvironment(unittest.TestCase):
                 ("zpackage", "conda"),
             ],
         ):
-            result = validator.get_conda_environment(packages)
+            result = package_resolver.get_conda_environment(packages)
 
         self.assertEqual(
             result,

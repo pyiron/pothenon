@@ -124,7 +124,7 @@ class TestImportStatements(unittest.TestCase):
                 return_value=dependency_versions,
             ),
             patch.object(
-                dependency_parser.validator,
+                dependency_parser.package_resolver,
                 "get_conda_environment",
                 return_value="name: test-env\ndependencies:\n  - numpy=1.26.0",
             ) as get_environment,
