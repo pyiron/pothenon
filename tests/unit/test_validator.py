@@ -18,58 +18,162 @@ def _make_dist(name, version, installer=None):
     return dist
 
 
-class TestGetCondaPackages(unittest.TestCase):
+def _make_conda_record(name, version, channel="defaults"):
+    """Create a mock conda PackageRecord."""
+    record = MagicMock()
+    record.name = name
+    record.version = version
+    record.channel = channel
+    return record
+
+
+class TestGetCondaPackagesWithCondaAPI(unittest.TestCase):
+    """Tests for _get_conda_packages when the conda Python API is available."""
+
     def setUp(self):
         validator._get_conda_packages.cache_clear()
 
     def tearDown(self):
         validator._get_conda_packages.cache_clear()
 
-    def test_returns_dict_of_packages(self):
+    def _patch_conda(self, records):
+        mock_prefix_data = MagicMock()
+        mock_prefix_data.iter_records.return_value = records
+        mock_prefix_data_cls = MagicMock(return_value=mock_prefix_data)
+        mock_context = MagicMock()
+        mock_context.active_prefix = "/opt/conda"
+        return (
+            patch.dict(
+                "sys.modules",
+                {
+                    "conda": MagicMock(),
+                    "conda.base": MagicMock(),
+                    "conda.base.context": MagicMock(context=mock_context),
+                    "conda.core": MagicMock(),
+                    "conda.core.prefix_data": MagicMock(
+                        PrefixData=mock_prefix_data_cls
+                    ),
+                },
+            ),
+        )
+
+    def test_conda_api_returns_conda_packages(self):
+        records = [
+            _make_conda_record("numpy", "1.26.0", channel="defaults"),
+            _make_conda_record("scipy", "1.11.0", channel="defaults"),
+        ]
+        mock_prefix_data = MagicMock()
+        mock_prefix_data.iter_records.return_value = records
+        mock_prefix_data_cls = MagicMock(return_value=mock_prefix_data)
+        mock_context = MagicMock()
+        mock_context.active_prefix = "/opt/conda"
+        mock_conda_context_mod = MagicMock()
+        mock_conda_context_mod.context = mock_context
+        mock_conda_prefix_mod = MagicMock()
+        mock_conda_prefix_mod.PrefixData = mock_prefix_data_cls
+
+        with patch.dict(
+            "sys.modules",
+            {
+                "conda": MagicMock(),
+                "conda.base": MagicMock(),
+                "conda.base.context": mock_conda_context_mod,
+                "conda.core": MagicMock(),
+                "conda.core.prefix_data": mock_conda_prefix_mod,
+            },
+        ):
+            validator._get_conda_packages.cache_clear()
+            result = validator._get_conda_packages()
+
+        self.assertIn("numpy", result)
+        self.assertEqual(result["numpy"]["version"], "1.26.0")
+        self.assertEqual(result["numpy"]["source"], "conda")
+
+    def test_conda_api_pypi_channel_mapped_to_pip(self):
+        records = [_make_conda_record("mypackage", "0.1.0", channel="pypi")]
+        mock_prefix_data = MagicMock()
+        mock_prefix_data.iter_records.return_value = records
+        mock_prefix_data_cls = MagicMock(return_value=mock_prefix_data)
+        mock_context = MagicMock()
+        mock_context.active_prefix = "/opt/conda"
+        mock_conda_context_mod = MagicMock()
+        mock_conda_context_mod.context = mock_context
+        mock_conda_prefix_mod = MagicMock()
+        mock_conda_prefix_mod.PrefixData = mock_prefix_data_cls
+
+        with patch.dict(
+            "sys.modules",
+            {
+                "conda": MagicMock(),
+                "conda.base": MagicMock(),
+                "conda.base.context": mock_conda_context_mod,
+                "conda.core": MagicMock(),
+                "conda.core.prefix_data": mock_conda_prefix_mod,
+            },
+        ):
+            validator._get_conda_packages.cache_clear()
+            result = validator._get_conda_packages()
+
+        self.assertEqual(result["mypackage"]["source"], "pip")
+
+
+class TestGetCondaPackagesFallback(unittest.TestCase):
+    """Tests for _get_conda_packages fallback when conda is not available."""
+
+    def setUp(self):
+        validator._get_conda_packages.cache_clear()
+
+    def tearDown(self):
+        validator._get_conda_packages.cache_clear()
+
+    def test_falls_back_to_importlib_when_conda_unavailable(self):
         mock_dists = [
             _make_dist("numpy", "1.26.0", installer="conda"),
             _make_dist("scipy", "1.11.0", installer="conda"),
         ]
-        with patch("pothenon.validator.distributions", return_value=mock_dists):
+        with (
+            patch.dict("sys.modules", {"conda": None}),
+            patch("pothenon.validator.distributions", return_value=mock_dists),
+        ):
             result = validator._get_conda_packages()
         self.assertIn("numpy", result)
         self.assertEqual(result["numpy"]["version"], "1.26.0")
         self.assertEqual(result["numpy"]["source"], "conda")
 
-    def test_pip_installer_mapped_to_pip_source(self):
+    def test_fallback_pip_installer_mapped_to_pip_source(self):
         mock_dists = [_make_dist("mypackage", "0.1.0", installer="pip")]
-        with patch("pothenon.validator.distributions", return_value=mock_dists):
+        with (
+            patch.dict("sys.modules", {"conda": None}),
+            patch("pothenon.validator.distributions", return_value=mock_dists),
+        ):
             result = validator._get_conda_packages()
         self.assertEqual(result["mypackage"]["source"], "pip")
 
-    def test_no_installer_defaults_to_conda(self):
+    def test_fallback_no_installer_defaults_to_conda(self):
         mock_dists = [_make_dist("somepackage", "2.0.0")]
-        with patch("pothenon.validator.distributions", return_value=mock_dists):
+        with (
+            patch.dict("sys.modules", {"conda": None}),
+            patch("pothenon.validator.distributions", return_value=mock_dists),
+        ):
             result = validator._get_conda_packages()
         self.assertEqual(result["somepackage"]["source"], "conda")
 
-    def test_packages_missing_name_are_skipped(self):
+    def test_fallback_packages_missing_name_or_version_skipped(self):
         meta_no_name = {"Name": None, "Version": "1.0.0"}
         dist_no_name = MagicMock()
         dist_no_name.metadata = meta_no_name
-        mock_dists = [
-            _make_dist("numpy", "1.26.0", installer="conda"),
-            dist_no_name,
-        ]
-        with patch("pothenon.validator.distributions", return_value=mock_dists):
-            result = validator._get_conda_packages()
-        self.assertIn("numpy", result)
-        self.assertEqual(len(result), 1)
-
-    def test_packages_missing_version_are_skipped(self):
         meta_no_ver = {"Name": "broken"}
         dist_no_ver = MagicMock()
         dist_no_ver.metadata = meta_no_ver
         mock_dists = [
             _make_dist("numpy", "1.26.0", installer="conda"),
+            dist_no_name,
             dist_no_ver,
         ]
-        with patch("pothenon.validator.distributions", return_value=mock_dists):
+        with (
+            patch.dict("sys.modules", {"conda": None}),
+            patch("pothenon.validator.distributions", return_value=mock_dists),
+        ):
             result = validator._get_conda_packages()
         self.assertIn("numpy", result)
         self.assertNotIn("broken", result)
@@ -82,7 +186,6 @@ class TestClassifyPackage(unittest.TestCase):
         self.assertEqual(result, ("os", "stdlib"))
 
     def test_dotted_stdlib_module_classified_as_stdlib(self):
-        # e.g. os.path — top-level is "os", which is stdlib
         pkg = VersionInfo(module="os.path", qualname="join", version=None)
         result = validator.classify_package(pkg)
         self.assertEqual(result, ("os", "stdlib"))

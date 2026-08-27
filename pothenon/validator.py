@@ -8,6 +8,21 @@ from pyiron_snippets import versions
 
 @cache
 def _get_conda_packages() -> dict[str, dict[str, str]]:
+    try:
+        from conda.base.context import context
+        from conda.core.prefix_data import PrefixData
+
+        return {
+            record.name: {
+                "version": record.version,
+                "source": "pip" if str(record.channel) == "pypi" else "conda",
+            }
+            for record in PrefixData(context.active_prefix).iter_records()
+        }
+    except ImportError:
+        pass
+
+    # Fallback: use importlib.metadata when conda is not available
     result = {}
     for dist in distributions():
         meta = dist.metadata
