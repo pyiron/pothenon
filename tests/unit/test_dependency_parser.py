@@ -626,6 +626,22 @@ class TestGetCallDependencies(unittest.TestCase):
         )
         self.assertIn("VersionInfo", result)
 
+    def test_check_installation_populates_package_metadata(self):
+        """When installation checking is enabled, classify_package fills package metadata."""
+        with patch.object(
+            dependency_parser.package_resolver,
+            "classify_package",
+            return_value=("pyiron-snippets", "pip"),
+        ) as classify_package:
+            result = dependency_parser.get_call_dependencies(
+                _func_with_versioned_dependency, check_installation=True
+            )
+
+        classify_package.assert_called_once()
+        dependency = result["VersionInfo"]
+        self.assertEqual(dependency.package_name, "pyiron-snippets")
+        self.assertEqual(dependency.source, "pip")
+
     def test_unversioned_class_dependency_is_recursed(self):
         """A class dependency without a version is captured with its own dependencies."""
         result = dependency_parser.get_call_dependencies(_func_with_unversioned_class)
