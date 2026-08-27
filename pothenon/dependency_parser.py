@@ -12,7 +12,7 @@ from typing import Any
 
 from pyiron_snippets import versions
 
-from pothenon import annotation_literalizer, object_scope
+from pothenon import annotation_literalizer, object_scope, validator
 
 predefined_variables: frozenset[str] = frozenset(
     {
@@ -62,6 +62,8 @@ class PackageInfo(typing.NamedTuple):
     info: versions.VersionInfo
     source_code: str | None = None
     dependency: dict[str, PackageInfo] | None = None
+    package_name: str | None = None
+    source: str | None = None
 
     @property
     def import_statement(self) -> str:
@@ -281,6 +283,8 @@ def find_undefined_variables(
 def get_call_dependencies(
     func_or_var: Callable[..., Any] | type[Any],
     version_scraping: versions.VersionScrapingMap | None = None,
+    *,
+    check_installation: bool = False,
     _call_dependencies: CallDependencies | None = None,
 ) -> CallDependencies:
 
@@ -299,7 +303,10 @@ def get_call_dependencies(
                     info,
                     source_code=_get_source_code(obj),
                     dependency=get_call_dependencies(
-                        obj, version_scraping, call_dependencies
+                        func_or_var=obj,
+                        version_scraping=version_scraping,
+                        check_installation=check_installation,
+                        _call_dependencies=call_dependencies,
                     ),
                 )
             else:
@@ -309,11 +316,16 @@ def get_call_dependencies(
         else:
             if not callable(obj) and not isinstance(obj, types.ModuleType):
                 raise ValueError(f"{name!r} is not a callable or module with a version")
-            call_dependencies[name] = PackageInfo(name, info)
+            n, s = None, None
+            if check_installation:
+                n, s = validator.classify_package(info)
+            call_dependencies[name] = PackageInfo(name, info, package_name=n, source=s)
     return call_dependencies
 
 
-def get_full_source(func_or_var: Callable[..., Any] | type[Any]) -> PackageInfo:
+def get_full_source(
+    func_or_var: Callable[..., Any] | type[Any], check_installation: bool = False
+) -> PackageInfo:
     try:
         source = _get_source_code(func_or_var)
     except (OSError, TypeError):
@@ -323,5 +335,7 @@ def get_full_source(func_or_var: Callable[..., Any] | type[Any]) -> PackageInfo:
         localname=func_or_var.__name__,
         info=versions.VersionInfo.of(func_or_var),
         source_code=source,
-        dependency=get_call_dependencies(func_or_var),
+        dependency=get_call_dependencies(
+            func_or_var, check_installation=check_installation
+        ),
     )

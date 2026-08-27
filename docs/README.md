@@ -79,6 +79,7 @@ Analyses *func* and returns a `CallDependencies` dict mapping each external symb
 | `info` | A `VersionInfo` with `module`, `qualname`, and `version` |
 | `source_code` | Source code of the dependency (local callables only) |
 | `dependency` | Recursively resolved dependencies of the dependency |
+| `installation` | Conda/pip installation string for the package, if available |
 
 ### `dependency_parser.split_by_version_availability(call_dependencies)`
 
