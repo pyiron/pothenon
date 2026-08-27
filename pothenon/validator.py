@@ -17,7 +17,11 @@ def _get_conda_packages() -> dict[str, dict[str, str]]:
             check=True,
         )
         packages = json.loads(result.stdout)
-    except (FileNotFoundError, subprocess.CalledProcessError, json.JSONDecodeError) as exc:
+    except (
+        FileNotFoundError,
+        subprocess.CalledProcessError,
+        json.JSONDecodeError,
+    ) as exc:
         warnings.warn(
             f"Unable to query conda packages via `conda list --json`: {exc}",
             stacklevel=2,
@@ -48,7 +52,10 @@ def classify_package(package: versions.VersionInfo) -> str:
     if module in sys.stdlib_module_names:
         return "stdlib"
     conda_packages = _get_conda_packages()
-    if module in conda_packages and conda_packages[module]["version"] == package.version:
+    if (
+        module in conda_packages
+        and conda_packages[module]["version"] == package.version
+    ):
         return conda_packages[module]["source"]
     warnings.warn(
         f"Package {package.module}=={package.version} not found in conda"

@@ -1,4 +1,3 @@
-import sys
 import unittest
 import warnings
 from unittest.mock import patch
@@ -46,9 +45,7 @@ class TestGetCondaPackages(unittest.TestCase):
                 warnings.simplefilter("always")
                 result = validator._get_conda_packages()
             self.assertEqual(result, {})
-            self.assertTrue(
-                any("conda list" in str(warning.message) for warning in w)
-            )
+            self.assertTrue(any("conda list" in str(warning.message) for warning in w))
 
     def test_called_process_error_returns_empty_dict(self):
         import subprocess
@@ -126,9 +123,7 @@ class TestClassifyPackage(unittest.TestCase):
 
     def test_dotted_module_path_uses_top_level_for_lookup(self):
         conda_data = {"numpy": {"version": "1.26.0", "source": "conda"}}
-        pkg = VersionInfo(
-            module="numpy.linalg", qualname="norm", version="1.26.0"
-        )
+        pkg = VersionInfo(module="numpy.linalg", qualname="norm", version="1.26.0")
         with patch.object(validator, "_get_conda_packages", return_value=conda_data):
             result = validator.classify_package(pkg)
         self.assertEqual(result, "conda")
@@ -136,20 +131,24 @@ class TestClassifyPackage(unittest.TestCase):
     def test_unknown_package_returns_unknown_and_warns(self):
         conda_data = {}
         pkg = VersionInfo(module="unknownpkg", qualname="func", version="9.9.9")
-        with patch.object(validator, "_get_conda_packages", return_value=conda_data):
-            with warnings.catch_warnings(record=True) as w:
-                warnings.simplefilter("always")
-                result = validator.classify_package(pkg)
+        with (
+            patch.object(validator, "_get_conda_packages", return_value=conda_data),
+            warnings.catch_warnings(record=True) as w,
+        ):
+            warnings.simplefilter("always")
+            result = validator.classify_package(pkg)
         self.assertEqual(result, "unknown")
         self.assertTrue(len(w) > 0)
 
     def test_version_mismatch_returns_unknown_and_warns(self):
         conda_data = {"numpy": {"version": "1.24.0", "source": "conda"}}
         pkg = VersionInfo(module="numpy", qualname="array", version="1.26.0")
-        with patch.object(validator, "_get_conda_packages", return_value=conda_data):
-            with warnings.catch_warnings(record=True) as w:
-                warnings.simplefilter("always")
-                result = validator.classify_package(pkg)
+        with (
+            patch.object(validator, "_get_conda_packages", return_value=conda_data),
+            warnings.catch_warnings(record=True) as w,
+        ):
+            warnings.simplefilter("always")
+            result = validator.classify_package(pkg)
         self.assertEqual(result, "unknown")
         self.assertTrue(len(w) > 0)
 
