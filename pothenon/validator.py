@@ -75,8 +75,8 @@ def classify_package(package: versions.VersionInfo) -> tuple[str, str]:
             return candidate, conda_package["source"]
 
     warnings.warn(
-        f"Package {package.module}=={package.version} not found in conda "
-        "environment or in the standard library. Tried distribution names: "
+        f"Package {package.module}=={package.version} could not be matched to"
+        " an installed distribution. Tried distribution names: "
         f"{candidates}.",
         stacklevel=2,
     )
