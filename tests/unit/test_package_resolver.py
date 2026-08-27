@@ -193,21 +193,27 @@ class TestClassifyPackage(unittest.TestCase):
     def test_conda_package_classified_as_conda(self):
         conda_data = {"numpy": {"version": "1.26.0", "source": "conda"}}
         pkg = VersionInfo(module="numpy", qualname="array", version="1.26.0")
-        with patch.object(package_resolver, "_get_conda_packages", return_value=conda_data):
+        with patch.object(
+            package_resolver, "_get_conda_packages", return_value=conda_data
+        ):
             result = package_resolver.classify_package(pkg)
         self.assertEqual(result, ("numpy", "conda"))
 
     def test_pip_package_classified_as_pip(self):
         conda_data = {"mypackage": {"version": "0.1.0", "source": "pip"}}
         pkg = VersionInfo(module="mypackage", qualname="func", version="0.1.0")
-        with patch.object(package_resolver, "_get_conda_packages", return_value=conda_data):
+        with patch.object(
+            package_resolver, "_get_conda_packages", return_value=conda_data
+        ):
             result = package_resolver.classify_package(pkg)
         self.assertEqual(result, ("mypackage", "pip"))
 
     def test_dotted_module_path_uses_top_level_for_lookup(self):
         conda_data = {"numpy": {"version": "1.26.0", "source": "conda"}}
         pkg = VersionInfo(module="numpy.linalg", qualname="norm", version="1.26.0")
-        with patch.object(package_resolver, "_get_conda_packages", return_value=conda_data):
+        with patch.object(
+            package_resolver, "_get_conda_packages", return_value=conda_data
+        ):
             result = package_resolver.classify_package(pkg)
         self.assertEqual(result, ("numpy", "conda"))
 
@@ -215,7 +221,9 @@ class TestClassifyPackage(unittest.TestCase):
         conda_data = {"scikit-learn": {"version": "1.5.0", "source": "conda"}}
         pkg = VersionInfo(module="sklearn", qualname="linear_model", version="1.5.0")
         with (
-            patch.object(package_resolver, "_get_conda_packages", return_value=conda_data),
+            patch.object(
+                package_resolver, "_get_conda_packages", return_value=conda_data
+            ),
             patch.object(
                 package_resolver,
                 "_get_distribution_map",
@@ -229,7 +237,9 @@ class TestClassifyPackage(unittest.TestCase):
         conda_data = {}
         pkg = VersionInfo(module="unknownpkg", qualname="func", version="9.9.9")
         with (
-            patch.object(package_resolver, "_get_conda_packages", return_value=conda_data),
+            patch.object(
+                package_resolver, "_get_conda_packages", return_value=conda_data
+            ),
             warnings.catch_warnings(record=True) as w,
         ):
             warnings.simplefilter("always")
@@ -241,7 +251,9 @@ class TestClassifyPackage(unittest.TestCase):
         conda_data = {"numpy": {"version": "1.24.0", "source": "conda"}}
         pkg = VersionInfo(module="numpy", qualname="array", version="1.26.0")
         with (
-            patch.object(package_resolver, "_get_conda_packages", return_value=conda_data),
+            patch.object(
+                package_resolver, "_get_conda_packages", return_value=conda_data
+            ),
             warnings.catch_warnings(record=True) as w,
         ):
             warnings.simplefilter("always")
