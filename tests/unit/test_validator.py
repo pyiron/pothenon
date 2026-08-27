@@ -250,5 +250,96 @@ class TestClassifyPackage(unittest.TestCase):
         self.assertTrue(len(w) > 0)
 
 
+class TestGetCondaEnvironment(unittest.TestCase):
+    def _package(self, module, version):
+        return VersionInfo(module=module, qualname="item", version=version)
+
+    def test_renders_conda_and_pip_dependencies_with_name(self):
+        packages = [
+            self._package("requests", "2.32.0"),
+            self._package("numpy", "1.26.0"),
+        ]
+        classifications = {
+            "requests": ("requests", "pip"),
+            "numpy": ("numpy", "conda"),
+        }
+
+        with patch.object(
+            validator,
+            "classify_package",
+            side_effect=lambda package: classifications[package.module],
+        ):
+            result = validator.get_conda_environment(packages, name="test-env")
+
+        self.assertEqual(
+            result,
+            "\n".join(
+                [
+                    "name: test-env",
+                    "dependencies:",
+                    "  - numpy=1.26.0",
+                    "  - pip",
+                    "  - pip:",
+                    "      - requests==2.32.0",
+                ]
+            ),
+        )
+
+    def test_omits_stdlib_and_unknown_packages_with_warning(self):
+        packages = [
+            self._package("os", None),
+            self._package("unknown", "9.9.9"),
+        ]
+
+        with (
+            patch.object(
+                validator,
+                "classify_package",
+                side_effect=[
+                    ("os", "stdlib"),
+                    ("unknown", "unknown"),
+                ],
+            ),
+            warnings.catch_warnings(record=True) as caught_warnings,
+        ):
+            warnings.simplefilter("always")
+            result = validator.get_conda_environment(packages)
+
+        self.assertEqual(result, "dependencies:")
+        self.assertEqual(len(caught_warnings), 1)
+        self.assertIn(
+            "Skipping unknown package unknown==9.9.9", str(caught_warnings[0].message)
+        )
+
+    def test_sorts_and_deduplicates_dependencies(self):
+        packages = [
+            self._package("zpackage", "1.0.0"),
+            self._package("apackage", "2.0.0"),
+            self._package("zpackage", "1.0.0"),
+        ]
+
+        with patch.object(
+            validator,
+            "classify_package",
+            side_effect=[
+                ("zpackage", "conda"),
+                ("apackage", "conda"),
+                ("zpackage", "conda"),
+            ],
+        ):
+            result = validator.get_conda_environment(packages)
+
+        self.assertEqual(
+            result,
+            "\n".join(
+                [
+                    "dependencies:",
+                    "  - apackage=2.0.0",
+                    "  - zpackage=1.0.0",
+                ]
+            ),
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

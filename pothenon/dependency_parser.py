@@ -123,6 +123,9 @@ class PackageInfo(typing.NamedTuple):
 
         return "\n\n".join(chunks)
 
+    def get_env_file(self, name: str | None = None) -> str:
+        return validator.get_conda_environment(self.dependency_versions, name=name)
+
     def __str__(self) -> str:
         return self.export()
 

@@ -3,7 +3,7 @@ import json
 import json as json_alias
 import textwrap
 import unittest
-from unittest.mock import patch
+from unittest.mock import PropertyMock, patch
 
 from pyiron_snippets.versions import VersionInfo
 
@@ -106,6 +106,33 @@ class TestImportStatements(unittest.TestCase):
             "from pyiron_snippets.versions import VersionInfo",
         )
         self.assertEqual(unversioned.import_statement, "")
+
+    def test_package_info_get_env_file_delegates_dependencies_and_name(self):
+        package = dependency_parser.PackageInfo(
+            localname="root",
+            info=VersionInfo(module="local", qualname="root", version=None),
+        )
+        dependency_versions = [
+            VersionInfo(module="numpy", qualname="array", version="1.26.0")
+        ]
+
+        with (
+            patch.object(
+                type(package),
+                "dependency_versions",
+                new_callable=PropertyMock,
+                return_value=dependency_versions,
+            ),
+            patch.object(
+                dependency_parser.validator,
+                "get_conda_environment",
+                return_value="name: test-env\ndependencies:\n  - numpy=1.26.0",
+            ) as get_environment,
+        ):
+            result = package.get_env_file(name="test-env")
+
+        self.assertEqual(result, "name: test-env\ndependencies:\n  - numpy=1.26.0")
+        get_environment.assert_called_once_with(dependency_versions, name="test-env")
 
     def test_package_info_export_includes_dependencies_and_source(self):
         dependency = dependency_parser.PackageInfo(
