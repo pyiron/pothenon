@@ -22,6 +22,10 @@ class TestHashPackageInfo(unittest.TestCase):
         identifier = hashing.hash_package_info(function)
 
         self.assertEqual(identifier, hashing.hash_package_info(function))
+        self.assertEqual(
+            identifier,
+            "75c62dc3704a6145f114724b9eb5cd966eb29b3aec8dcd53611f59948a302718",
+        )
         self.assertIsInstance(identifier, str)
 
     def test_mutually_recursive_dependencies_are_supported(self):
