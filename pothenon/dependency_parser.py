@@ -331,6 +331,17 @@ def get_call_dependencies(
 def get_full_source(
     func_or_var: Callable[..., Any] | type[Any], check_installation: bool = False
 ) -> PackageInfo:
+    info = versions.VersionInfo.of(func_or_var)
+    if info.version is not None:
+        n, s = None, None
+        if check_installation:
+            n, s = package_resolver.classify_package(info)
+        return PackageInfo(
+            localname=func_or_var.__name__,
+            info=info,
+            package_name=n,
+            source=s,
+        )
     try:
         source = _get_source_code(func_or_var)
     except (OSError, TypeError):
