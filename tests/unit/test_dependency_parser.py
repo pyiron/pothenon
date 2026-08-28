@@ -3,7 +3,7 @@ import json
 import json as json_alias
 import textwrap
 import unittest
-from unittest.mock import PropertyMock, patch
+from unittest.mock import PropertyMock, call, patch
 
 from pyiron_snippets.versions import VersionInfo
 
@@ -741,6 +741,48 @@ class TestGetFullSource(unittest.TestCase):
             dependency_parser.PackageInfo(
                 localname="_func_no_external",
                 info=expected_info,
+            ),
+        )
+
+    def test_get_full_source_collects_source_and_dependencies(self):
+        expected_info = VersionInfo(module="module", qualname="func", version=None)
+        expected_dependencies = {
+            "dep": dependency_parser.PackageInfo(
+                localname="dep",
+                info=VersionInfo(module="dep_mod", qualname="dep", version="0.1.0"),
+            )
+        }
+        expected_source = "def _func_no_external(x, y):\n    return x + y"
+
+        with (
+            patch.object(
+                dependency_parser.versions.VersionInfo, "of", return_value=expected_info
+            ) as version_of,
+            patch.object(
+                dependency_parser.annotation_literalizer,
+                "transform",
+                return_value=expected_source,
+            ) as transform,
+            patch.object(
+                dependency_parser,
+                "get_call_dependencies",
+                return_value=expected_dependencies,
+            ) as get_call_dependencies,
+        ):
+            result = dependency_parser.get_full_source(_func_no_external)
+
+        self.assertEqual(version_of.call_args_list, [call(_func_no_external)] * 2)
+        transform.assert_called_once_with(_func_no_external)
+        get_call_dependencies.assert_called_once_with(
+            _func_no_external, check_installation=False
+        )
+        self.assertEqual(
+            result,
+            dependency_parser.PackageInfo(
+                localname="_func_no_external",
+                info=expected_info,
+                source_code=expected_source,
+                dependency=expected_dependencies,
             ),
         )
 
