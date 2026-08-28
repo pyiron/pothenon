@@ -713,7 +713,9 @@ class TestGetCallDependencies(unittest.TestCase):
 
 
 class TestGetFullSource(unittest.TestCase):
-    def test_get_full_source_returns_versioned_package_info_without_source_analysis(self):
+    def test_get_full_source_returns_versioned_package_info_without_source_analysis(
+        self,
+    ):
         expected_info = VersionInfo(module="module", qualname="func", version="1.2.3")
 
         with (
