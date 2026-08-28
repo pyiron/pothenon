@@ -67,8 +67,7 @@ def hash_package_info(package_info: "PackageInfo") -> str:
 
     # Hash each function independently of its dependencies.
     intrinsic_hashes = {
-        node: _hash(_intrinsic_data(pkg))
-        for node, pkg in packages.items()
+        node: _hash(_intrinsic_data(pkg)) for node, pkg in packages.items()
     }
 
     # Find mutually recursive groups.
@@ -102,27 +101,30 @@ def hash_package_info(package_info: "PackageInfo") -> str:
 
         # Dependencies outside the recursive component have already been
         # hashed because we're traversing in reverse topological order.
-        external_dependencies = sorted({
-            component_hashes[component_of[target]]
-            for source, target in graph.edges
-            if source in members and target not in members
-        })
+        external_dependencies = sorted(
+            {
+                component_hashes[component_of[target]]
+                for source, target in graph.edges
+                if source in members and target not in members
+            }
+        )
 
-        component_hashes[component_id] = _hash({
-            "members": sorted(
-                intrinsic_hashes[node]
-                for node in members
-            ),
-            "internal_edges": internal_edges,
-            "dependencies": external_dependencies,
-        })
+        component_hashes[component_id] = _hash(
+            {
+                "members": sorted(intrinsic_hashes[node] for node in members),
+                "internal_edges": internal_edges,
+                "dependencies": external_dependencies,
+            }
+        )
 
     root_component_hash = component_hashes[component_of[root]]
 
     # The SCC hash describes the complete recursive context. Combining it
     # with the root's intrinsic hash ensures that two different functions
     # within the same SCC still get different identifiers.
-    return _hash({
-        "function": intrinsic_hashes[root],
-        "component": root_component_hash,
-    })
+    return _hash(
+        {
+            "function": intrinsic_hashes[root],
+            "component": root_component_hash,
+        }
+    )
