@@ -3,7 +3,7 @@ import json
 import json as json_alias
 import textwrap
 import unittest
-from unittest.mock import PropertyMock, patch
+from unittest.mock import PropertyMock, call, patch
 
 from pyiron_snippets.versions import VersionInfo
 
@@ -713,8 +713,39 @@ class TestGetCallDependencies(unittest.TestCase):
 
 
 class TestGetFullSource(unittest.TestCase):
-    def test_get_full_source_collects_source_and_dependencies(self):
+    def test_get_full_source_returns_versioned_package_info_without_source_analysis(
+        self,
+    ):
         expected_info = VersionInfo(module="module", qualname="func", version="1.2.3")
+
+        with (
+            patch.object(
+                dependency_parser.versions.VersionInfo, "of", return_value=expected_info
+            ) as version_of,
+            patch.object(
+                dependency_parser.annotation_literalizer,
+                "transform",
+            ) as transform,
+            patch.object(
+                dependency_parser,
+                "get_call_dependencies",
+            ) as get_call_dependencies,
+        ):
+            result = dependency_parser.get_full_source(_func_no_external)
+
+        version_of.assert_called_once_with(_func_no_external)
+        transform.assert_not_called()
+        get_call_dependencies.assert_not_called()
+        self.assertEqual(
+            result,
+            dependency_parser.PackageInfo(
+                localname="_func_no_external",
+                info=expected_info,
+            ),
+        )
+
+    def test_get_full_source_collects_source_and_dependencies(self):
+        expected_info = VersionInfo(module="module", qualname="func", version=None)
         expected_dependencies = {
             "dep": dependency_parser.PackageInfo(
                 localname="dep",
@@ -740,7 +771,7 @@ class TestGetFullSource(unittest.TestCase):
         ):
             result = dependency_parser.get_full_source(_func_no_external)
 
-        version_of.assert_called_once_with(_func_no_external)
+        self.assertEqual(version_of.call_args_list, [call(_func_no_external)] * 2)
         transform.assert_called_once_with(_func_no_external)
         get_call_dependencies.assert_called_once_with(
             _func_no_external, check_installation=False
