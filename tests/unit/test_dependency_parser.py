@@ -713,15 +713,8 @@ class TestGetCallDependencies(unittest.TestCase):
 
 
 class TestGetFullSource(unittest.TestCase):
-    def test_get_full_source_collects_source_and_dependencies(self):
+    def test_get_full_source_returns_versioned_package_info_without_source_analysis(self):
         expected_info = VersionInfo(module="module", qualname="func", version="1.2.3")
-        expected_dependencies = {
-            "dep": dependency_parser.PackageInfo(
-                localname="dep",
-                info=VersionInfo(module="dep_mod", qualname="dep", version="0.1.0"),
-            )
-        }
-        expected_source = "def _func_no_external(x, y):\n    return x + y"
 
         with (
             patch.object(
@@ -730,28 +723,22 @@ class TestGetFullSource(unittest.TestCase):
             patch.object(
                 dependency_parser.annotation_literalizer,
                 "transform",
-                return_value=expected_source,
             ) as transform,
             patch.object(
                 dependency_parser,
                 "get_call_dependencies",
-                return_value=expected_dependencies,
             ) as get_call_dependencies,
         ):
             result = dependency_parser.get_full_source(_func_no_external)
 
         version_of.assert_called_once_with(_func_no_external)
-        transform.assert_called_once_with(_func_no_external)
-        get_call_dependencies.assert_called_once_with(
-            _func_no_external, check_installation=False
-        )
+        transform.assert_not_called()
+        get_call_dependencies.assert_not_called()
         self.assertEqual(
             result,
             dependency_parser.PackageInfo(
                 localname="_func_no_external",
                 info=expected_info,
-                source_code=expected_source,
-                dependency=expected_dependencies,
             ),
         )
 
