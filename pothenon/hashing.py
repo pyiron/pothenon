@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 import networkx as nx
+
+if TYPE_CHECKING:
+    from pothenon.package_info import PackageInfo
 
 
 def _hash(data: Any) -> str:
@@ -18,7 +21,7 @@ def _hash(data: Any) -> str:
     return hashlib.sha256(payload.encode()).hexdigest()
 
 
-def _intrinsic_data(package_info: "PackageInfo") -> dict[str, Any]:
+def _intrinsic_data(package_info: PackageInfo) -> dict[str, Any]:
     """Return the part of a function's identity independent of dependencies."""
     if package_info.info.has_version:
         return {
@@ -34,7 +37,7 @@ def _intrinsic_data(package_info: "PackageInfo") -> dict[str, Any]:
     }
 
 
-def hash_package_info(package_info: "PackageInfo") -> str:
+def hash_package_info(package_info: PackageInfo) -> str:
     """
     Return a deterministic identifier for a function and its dependencies.
 
