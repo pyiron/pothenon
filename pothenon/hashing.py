@@ -23,7 +23,7 @@ def _hash(data: Any) -> str:
 
 def _intrinsic_data(package_info: PackageInfo) -> dict[str, Any]:
     """Return the part of a function's identity independent of dependencies."""
-    if package_info.info.has_version:
+    if package_info.info.version:
         return {
             "kind": "versioned",
             "module": package_info.info.module,
