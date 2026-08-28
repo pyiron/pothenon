@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 import networkx as nx
 
 if TYPE_CHECKING:
-    from pothenon.package_info import PackageInfo
+    from pothenon.dependency_parser import PackageInfo
 
 
 def _hash(data: Any) -> str:
