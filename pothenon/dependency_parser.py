@@ -12,7 +12,7 @@ from typing import Any
 
 from pyiron_snippets import versions
 
-from pothenon import annotation_literalizer, object_scope, package_resolver
+from pothenon import annotation_literalizer, hashing, object_scope, package_resolver
 
 predefined_variables: frozenset[str] = frozenset(
     {
@@ -130,6 +130,10 @@ class PackageInfo(typing.NamedTuple):
 
     def __str__(self) -> str:
         return self.export()
+
+    @property
+    def identifier(self) -> str:
+        return hashing.hash_package_info(self)
 
 
 CallDependencies = dict[str, PackageInfo]
