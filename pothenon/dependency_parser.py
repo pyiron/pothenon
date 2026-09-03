@@ -132,7 +132,7 @@ class PackageInfo(typing.NamedTuple):
         return self.export()
 
     @property
-    def identifier(self) -> int:
+    def identifier(self) -> str:
         return hashing.hash_package_info(self)
 
 

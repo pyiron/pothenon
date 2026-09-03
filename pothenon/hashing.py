@@ -28,7 +28,6 @@ def _intrinsic_data(package_info: PackageInfo) -> dict[str, Any]:
             "kind": "versioned",
             "module": package_info.info.module,
             "qualname": package_info.info.qualname,
-            "version": package_info.info.version,
         }
 
     return {
@@ -40,6 +39,9 @@ def _intrinsic_data(package_info: PackageInfo) -> dict[str, Any]:
 def hash_package_info(package_info: PackageInfo) -> str:
     """
     Return a deterministic identifier for a function and its dependencies.
+
+    The identifier is formatted as:
+    {SOURCE CODE HASH}-{DEPENDENCY TREE HASH}-{UNHASHED PROXIMATE VERSION}
 
     Dependencies are treated as unordered.
 
@@ -121,13 +123,7 @@ def hash_package_info(package_info: PackageInfo) -> str:
         )
 
     root_component_hash = component_hashes[component_of[root]]
+    source_code_hash = intrinsic_hashes[root]
+    version = package_info.info.version or ""
 
-    # The SCC hash describes the complete recursive context. Combining it
-    # with the root's intrinsic hash ensures that two different functions
-    # within the same SCC still get different identifiers.
-    return _hash(
-        {
-            "function": intrinsic_hashes[root],
-            "component": root_component_hash,
-        }
-    )
+    return f"{source_code_hash}-{root_component_hash}-{version}"
