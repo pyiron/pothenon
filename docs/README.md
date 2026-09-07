@@ -80,8 +80,3 @@ Analyses *func* and returns a `CallDependencies` dict mapping each external symb
 | `source_code` | Source code of the dependency (local callables only) |
 | `dependency` | Recursively resolved dependencies of the dependency |
 | `installation` | Conda/pip installation string for the package, if available |
-
-### `dependency_parser.split_by_version_availability(call_dependencies)`
-
-Partitions a `CallDependencies` dict into two dicts: one for dependencies that have a version
-string and one for those that do not.
