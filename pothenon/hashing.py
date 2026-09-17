@@ -2,9 +2,14 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import networkx as nx
+
+if TYPE_CHECKING:
+    from pothenon.dependency_parser import PackageInfo
+
+_IDENTIFIER_HASH_LENGTH = 16
 
 
 def _hash(data: Any) -> str:
@@ -18,15 +23,19 @@ def _hash(data: Any) -> str:
     return hashlib.sha256(payload.encode()).hexdigest()
 
 
-def _intrinsic_data(package_info: "PackageInfo") -> dict[str, Any]:
+def _intrinsic_data(
+    package_info: PackageInfo, include_version: bool = False
+) -> dict[str, Any]:
     """Return the part of a function's identity independent of dependencies."""
-    if package_info.info.has_version:
-        return {
+    if package_info.info.version:
+        data = {
             "kind": "versioned",
             "module": package_info.info.module,
             "qualname": package_info.info.qualname,
-            "version": package_info.info.version,
         }
+        if include_version:
+            data["version"] = package_info.info.version
+        return data
 
     return {
         "kind": "source",
@@ -34,9 +43,12 @@ def _intrinsic_data(package_info: "PackageInfo") -> dict[str, Any]:
     }
 
 
-def hash_package_info(package_info: "PackageInfo") -> str:
+def hash_package_info(package_info: PackageInfo) -> str:
     """
     Return a deterministic identifier for a function and its dependencies.
+
+    The identifier is formatted as:
+    {VERSIONLESS SOURCE HASH}-{FULL DEPENDENCY TREE HASH}
 
     Dependencies are treated as unordered.
 
@@ -65,9 +77,13 @@ def hash_package_info(package_info: "PackageInfo") -> str:
 
     root = collect(package_info)
 
-    # Hash each function independently of its dependencies.
-    intrinsic_hashes = {
-        node: _hash(_intrinsic_data(pkg))
+    # Hash each function independently of its dependencies, with and without
+    # its installed package version.
+    versionless_intrinsic_hashes = {
+        node: _hash(_intrinsic_data(pkg)) for node, pkg in packages.items()
+    }
+    full_intrinsic_hashes = {
+        node: _hash(_intrinsic_data(pkg, include_version=True))
         for node, pkg in packages.items()
     }
 
@@ -95,34 +111,33 @@ def hash_package_info(package_info: "PackageInfo") -> str:
 
         # Preserve the topology within a recursive component.
         internal_edges = sorted(
-            (intrinsic_hashes[source], intrinsic_hashes[target])
+            (full_intrinsic_hashes[source], full_intrinsic_hashes[target])
             for source, target in graph.edges
             if source in members and target in members
         )
 
         # Dependencies outside the recursive component have already been
         # hashed because we're traversing in reverse topological order.
-        external_dependencies = sorted({
-            component_hashes[component_of[target]]
-            for source, target in graph.edges
-            if source in members and target not in members
-        })
+        external_dependencies = sorted(
+            {
+                component_hashes[component_of[target]]
+                for source, target in graph.edges
+                if source in members and target not in members
+            }
+        )
 
-        component_hashes[component_id] = _hash({
-            "members": sorted(
-                intrinsic_hashes[node]
-                for node in members
-            ),
-            "internal_edges": internal_edges,
-            "dependencies": external_dependencies,
-        })
+        component_hashes[component_id] = _hash(
+            {
+                "members": sorted(full_intrinsic_hashes[node] for node in members),
+                "internal_edges": internal_edges,
+                "dependencies": external_dependencies,
+            }
+        )
 
-    root_component_hash = component_hashes[component_of[root]]
+    versionless_hash = versionless_intrinsic_hashes[root]
+    full_hash = component_hashes[component_of[root]]
 
-    # The SCC hash describes the complete recursive context. Combining it
-    # with the root's intrinsic hash ensures that two different functions
-    # within the same SCC still get different identifiers.
-    return _hash({
-        "function": intrinsic_hashes[root],
-        "component": root_component_hash,
-    })
+    return (
+        f"{versionless_hash[:_IDENTIFIER_HASH_LENGTH]}-"
+        f"{full_hash[:_IDENTIFIER_HASH_LENGTH]}"
+    )
