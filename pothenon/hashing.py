@@ -128,9 +128,7 @@ def hash_package_info(package_info: PackageInfo) -> str:
 
         component_hashes[component_id] = _hash(
             {
-                "members": sorted(
-                    full_intrinsic_hashes[node] for node in members
-                ),
+                "members": sorted(full_intrinsic_hashes[node] for node in members),
                 "internal_edges": internal_edges,
                 "dependencies": external_dependencies,
             }
